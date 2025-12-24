@@ -10,6 +10,7 @@ from .rag_tool import (
     search_sdmx_semantic,
     search_sdmx_with_score,
     initialize_rag_vectorstore,
+    rebuild_vectorstore,
     get_vectorstore,
 )
 
@@ -21,6 +22,7 @@ __all__ = [
     "search_sdmx_semantic",
     "search_sdmx_with_score",
     "initialize_rag_vectorstore",
+    "rebuild_vectorstore",
     "get_vectorstore",
 ]
 

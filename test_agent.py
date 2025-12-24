@@ -3,12 +3,10 @@ Test script to debug the agent response.
 """
 import asyncio
 from pathlib import Path
-from dotenv import load_dotenv
 from tools import initialize_sdmx_data, initialize_rag_vectorstore
 from tools import sdmx_tool
-from agent import create_sdmx_agent, run_agent_async
+from core.agent import create_sdmx_agent, run_agent_async
 
-load_dotenv()
 
 async def test():
     # Initialize data

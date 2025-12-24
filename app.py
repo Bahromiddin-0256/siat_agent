@@ -5,22 +5,19 @@ This module provides a web-based chat interface for the SDMX ID retriever agent
 with both REST API and WebSocket support for real-time streaming.
 """
 
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
-from agent import create_sdmx_agent, run_agent_async
+from core.agent import create_sdmx_agent, run_agent_async
+from core.settings import settings
 from tools import initialize_sdmx_data, initialize_rag_vectorstore
 from tools import sdmx_tool
 
 # Load environment variables
-load_dotenv()
 
 # Global agent instance and system prompt
 agent = None
@@ -78,13 +75,7 @@ async def lifespan(app: FastAPI):
 
     # Create the agent
     print("Creating SDMX agent...")
-    try:
-        agent, system_prompt = create_sdmx_agent()
-        print("Agent created successfully!")
-        print(f"Using model: {os.getenv('OLLAMA_MODEL', 'llama3.2')}")
-    except Exception as e:
-        print(f"Warning: Could not create agent: {e}")
-        print("The API will still work with direct search methods")
+    agent, system_prompt = create_sdmx_agent()
 
     yield
 
@@ -292,14 +283,14 @@ async def health_check():
     return {
         "status": "healthy",
         "agent_available": agent is not None,
-        "model": os.getenv("OLLAMA_MODEL", "llama3.2")
+        "model": settings.ollama_model,
     }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("PORT", "8000"))
+    port = int(settings.port)
     uvicorn.run(
         "app:app",
         host="0.0.0.0",

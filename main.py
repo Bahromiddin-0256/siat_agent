@@ -5,22 +5,16 @@ This script demonstrates how to use the SDMX agent with Ollama to find
 statistical indicator IDs based on user questions using RAG and semantic search.
 """
 
-import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
+from core.settings import settings
 from tools import (
     initialize_sdmx_data,
     get_sdmx_id,
     initialize_rag_vectorstore,
     search_sdmx_semantic,
 )
-from agent import create_sdmx_agent, run_agent
-
-
-# Load environment variables
-load_dotenv()
+from core.agent import create_sdmx_agent, run_agent
 
 
 def load_and_initialize_data(json_path: Path):
@@ -68,33 +62,23 @@ def main():
     print("Example 3: LangGraph Agent with Ollama")
     print("=" * 60)
 
-    try:
-        # Create the agent (will use Ollama)
-        agent, system_prompt = create_sdmx_agent()
+    # Create the agent (will use Ollama)
+    agent, system_prompt = create_sdmx_agent()
 
-        # Ask questions
-        questions = [
-            "What is the SDMX ID for quarterly GDP data?",
-            "Find indicators related to population statistics",
-            "Show me export and import indicators",
-        ]
+    # Ask questions
+    questions = [
+        "What is the SDMX ID for quarterly GDP data?",
+        "Find indicators related to population statistics",
+        "Show me export and import indicators",
+    ]
 
-        for question in questions:
-            print(f"\nQuestion: {question}")
-            print("-" * 40)
-            response = run_agent(agent, question, system_prompt)
-            print(response)
-            print()
+    for question in questions:
+        print(f"\nQuestion: {question}")
+        print("-" * 40)
+        response = run_agent(agent, question, system_prompt)
+        print(response)
+        print()
 
-    except Exception as e:
-        print(f"Error: Could not connect to Ollama: {e}")
-        print("\nMake sure:")
-        print("1. Ollama is installed (https://ollama.ai)")
-        print("2. Ollama is running (ollama serve)")
-        print(f"3. Model '{os.getenv('OLLAMA_MODEL', 'llama3.2')}' is pulled")
-        print(f"4. Embedding model '{os.getenv('OLLAMA_EMBEDDING_MODEL', 'nomic-embed-text')}' is pulled")
-        print("\nYou can still use direct keyword and semantic search above.")
-        print("=" * 60)
 
 
 def interactive_mode():
@@ -116,7 +100,7 @@ def interactive_mode():
         agent, system_prompt = create_sdmx_agent()
         use_agent = True
         print("Using LangGraph agent with Ollama")
-        print(f"Model: {os.getenv('OLLAMA_MODEL', 'llama3.2')}\n")
+        print(f"Model: {settings.ollama_model}\n")
     except Exception as e:
         print(f"Could not connect to Ollama: {e}")
         print("Falling back to direct semantic search mode\n")

@@ -15,6 +15,7 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.vectorstores import VectorStore
 
+from core.settings import settings
 
 # Global variable to store vector store
 _vector_store: VectorStore | None = None
@@ -39,12 +40,12 @@ def initialize_rag_vectorstore(
     global _vector_store
 
     if embedding_model is None:
-        embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+        embedding_model = settings.ollama_embedding_model
 
     # Create embeddings
     embeddings = OllamaEmbeddings(
         model=embedding_model,
-        base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        base_url=settings.ollama_base_url,
     )
 
     # Convert SDMX data to documents
@@ -119,17 +120,27 @@ def initialize_rag_vectorstore(
                 current_path = path + [item.get('name', 'Unknown')]
                 extract_documents(children, current_path)
 
-    # Extract all documents
-    extract_documents(json_data)
-
     # Create or load vector store
     persist_path = Path(persist_directory)
+
+    # Check if vector store already exists - load it instead of recreating
+    if persist_path.exists() and (persist_path / "chroma.sqlite3").exists():
+        print("Loading existing vector store from disk (fast)...")
+        _vector_store = Chroma(
+            persist_directory=str(persist_path),
+            embedding_function=embeddings,
+        )
+        return _vector_store
+
+    # Extract all documents only if we need to create a new vector store
+    print("Creating new vector store (this may take a while)...")
+    extract_documents(json_data)
 
     # Generate unique IDs for each document to prevent duplicates
     ids = [f"sdmx_{doc.metadata.get('id', doc.metadata.get('code', i))}"
            for i, doc in enumerate(documents)]
 
-    # Always create a fresh vector store with current data
+    # Create fresh vector store with current data
     _vector_store = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
@@ -143,6 +154,28 @@ def initialize_rag_vectorstore(
 def get_vectorstore() -> VectorStore | None:
     """Get the initialized vector store."""
     return _vector_store
+
+
+def rebuild_vectorstore(
+    json_data: list[dict[str, Any]],
+    persist_directory: str = "./chroma_db",
+    embedding_model: str = None,
+) -> VectorStore:
+    """
+    Force rebuild the vector store (use when JSON data has changed).
+
+    This deletes the existing vector store and creates a new one.
+    """
+    import shutil
+    persist_path = Path(persist_directory)
+
+    # Remove existing vector store
+    if persist_path.exists():
+        print(f"Removing existing vector store at {persist_path}...")
+        shutil.rmtree(persist_path)
+
+    # Reinitialize
+    return initialize_rag_vectorstore(json_data, persist_directory, embedding_model)
 
 
 @tool

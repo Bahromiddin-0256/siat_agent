@@ -4,15 +4,13 @@ SDMX Agent using LangGraph.
 This module implements a ReAct agent that can search for SDMX IDs
 based on user questions using LangGraph's prebuilt agent with Ollama.
 """
-
-import os
 from typing import Annotated, Any, TypedDict
 
-from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
-from langchain_ollama import ChatOllama
+from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
 
+from .llm import llm
 from tools import (
     get_sdmx_id,
     get_sdmx_by_code,
@@ -28,33 +26,17 @@ class AgentState(TypedDict):
 
 
 def create_sdmx_agent(
-    model_name: str = None,
-    temperature: float = 0,
-    base_url: str = None,
 ) -> tuple[Any, str]:
     """
     Create an SDMX agent using LangGraph's prebuilt ReAct agent with Ollama.
 
     Args:
-        model_name: The Ollama model to use (default: from env or "llama3.2")
-        temperature: Temperature for the model
-        base_url: Ollama base URL (default: from env or "http://localhost:11434")
 
     Returns:
         A tuple of (compiled LangGraph agent, system prompt)
     """
     # Get configuration from environment or use defaults
-    if model_name is None:
-        model_name = os.getenv("OLLAMA_MODEL", "llama3.2")
-    if base_url is None:
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    # Initialize the LLM with Ollama
-    llm = ChatOllama(
-        model=model_name,
-        temperature=temperature,
-        base_url=base_url,
-    )
 
     # Define the tools
     tools = [
@@ -88,7 +70,7 @@ Best practices:
 
 You can understand questions in English, Russian, and Uzbek."""
 
-    # Create the ReAct agent with system message
+    # Create the ReAct agent
     agent = create_agent(llm, tools)
 
     return agent, system_prompt
@@ -165,7 +147,6 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         config=config,
     )
 
-    # Get the last AI message with actual response content
     for message in reversed(result["messages"]):
         if isinstance(message, AIMessage):
             # Skip messages that only contain tool calls without text content
@@ -183,5 +164,6 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
                 if len(content_str) > 200:
                     return content_str
 
+    # Get the last AI message with actual response content
     return "No response generated."
 
