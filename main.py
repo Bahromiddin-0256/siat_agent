@@ -70,7 +70,7 @@ def main():
 
     try:
         # Create the agent (will use Ollama)
-        agent = create_sdmx_agent()
+        agent, system_prompt = create_sdmx_agent()
 
         # Ask questions
         questions = [
@@ -82,7 +82,7 @@ def main():
         for question in questions:
             print(f"\nQuestion: {question}")
             print("-" * 40)
-            response = run_agent(agent, question)
+            response = run_agent(agent, question, system_prompt)
             print(response)
             print()
 
@@ -111,8 +111,9 @@ def interactive_mode():
     # Try to create the agent
     use_agent = False
     agent = None
+    system_prompt = None
     try:
-        agent = create_sdmx_agent()
+        agent, system_prompt = create_sdmx_agent()
         use_agent = True
         print("Using LangGraph agent with Ollama")
         print(f"Model: {os.getenv('OLLAMA_MODEL', 'llama3.2')}\n")
@@ -140,7 +141,7 @@ def interactive_mode():
                 response = search_sdmx_semantic.invoke({"question": query})
             elif use_agent:
                 # Use the agent
-                response = run_agent(agent, question)
+                response = run_agent(agent, question, system_prompt)
             else:
                 # Fallback to semantic search
                 response = search_sdmx_semantic.invoke({"question": question})

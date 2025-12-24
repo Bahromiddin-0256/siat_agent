@@ -22,8 +22,9 @@ from tools import sdmx_tool
 # Load environment variables
 load_dotenv()
 
-# Global agent instance
+# Global agent instance and system prompt
 agent = None
+system_prompt = None
 
 
 class ChatMessage(BaseModel):
@@ -60,7 +61,7 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize the agent on startup."""
-    global agent
+    global agent, system_prompt
 
     # Initialize SDMX data and RAG vector store
     json_path = Path(__file__).parent / "jsons" / "main.json"
@@ -78,7 +79,7 @@ async def lifespan(app: FastAPI):
     # Create the agent
     print("Creating SDMX agent...")
     try:
-        agent = create_sdmx_agent()
+        agent, system_prompt = create_sdmx_agent()
         print("Agent created successfully!")
         print(f"Using model: {os.getenv('OLLAMA_MODEL', 'llama3.2')}")
     except Exception as e:
@@ -228,7 +229,7 @@ async def chat(message: ChatMessage):
     Returns:
         The agent's response
     """
-    global agent
+    global agent, system_prompt
 
     if not message.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -240,8 +241,8 @@ async def chat(message: ChatMessage):
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
-        # Use the agent
-        response = await run_agent_async(agent, message.message)
+        # Use the agent with system prompt
+        response = await run_agent_async(agent, message.message, system_prompt)
         return ChatResponse(response=response)
 
     except Exception as e:
@@ -266,7 +267,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             try:
-                global agent
+                global agent, system_prompt
 
                 if agent is None:
                     # Fallback to semantic search
@@ -274,8 +275,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     result = search_sdmx_semantic.invoke({"question": data})
                     await manager.send_message(result, websocket)
                 else:
-                    # Use the agent
-                    response = await run_agent_async(agent, data)
+                    # Use the agent with system prompt
+                    response = await run_agent_async(agent, data, system_prompt)
                     await manager.send_message(response, websocket)
 
             except Exception as e:

@@ -8,9 +8,9 @@ based on user questions using LangGraph's prebuilt agent with Ollama.
 import os
 from typing import Annotated, Any, TypedDict
 
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+from langchain.agents import create_agent
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
 from langchain_ollama import ChatOllama
-from langgraph.prebuilt import create_react_agent
 from langgraph.graph.message import add_messages
 
 from tools import (
@@ -31,7 +31,7 @@ def create_sdmx_agent(
     model_name: str = None,
     temperature: float = 0,
     base_url: str = None,
-) -> Any:
+) -> tuple[Any, str]:
     """
     Create an SDMX agent using LangGraph's prebuilt ReAct agent with Ollama.
 
@@ -41,7 +41,7 @@ def create_sdmx_agent(
         base_url: Ollama base URL (default: from env or "http://localhost:11434")
 
     Returns:
-        A compiled LangGraph agent
+        A tuple of (compiled LangGraph agent, system prompt)
     """
     # Get configuration from environment or use defaults
     if model_name is None:
@@ -88,64 +88,100 @@ Best practices:
 
 You can understand questions in English, Russian, and Uzbek."""
 
-    # Create the ReAct agent
-    agent = create_react_agent(
-        model=llm,
-        tools=tools,
-        messages_modifier=system_prompt,
-    )
+    # Create the ReAct agent with system message
+    agent = create_agent(llm, tools)
 
-    return agent
+    return agent, system_prompt
 
 
-async def run_agent_async(agent, question: str) -> str:
+async def run_agent_async(agent, question: str, system_prompt: str = None) -> str:
     """
     Run the agent asynchronously with a question.
 
     Args:
         agent: The compiled agent
         question: User's question
+        system_prompt: Optional system prompt
 
     Returns:
         Agent's response
     """
     config = {"configurable": {"thread_id": "1"}}
 
+    # Build messages with system prompt
+    messages = []
+    if system_prompt:
+        messages.append(SystemMessage(content=system_prompt))
+    messages.append(HumanMessage(content=question))
+
     result = await agent.ainvoke(
-        {"messages": [HumanMessage(content=question)]},
+        {"messages": messages},
         config=config,
     )
 
-    # Get the last AI message
+    # Get the last AI message with actual response content
     for message in reversed(result["messages"]):
-        if isinstance(message, AIMessage) and message.content:
-            return message.content
+        if isinstance(message, AIMessage):
+            # Skip messages that only contain tool calls without text content
+            if hasattr(message, 'tool_calls') and message.tool_calls:
+                if not message.content or not str(message.content).strip():
+                    continue
+
+            # Return string content if it's meaningful
+            if message.content:
+                content_str = str(message.content).strip()
+                # Skip if it looks like a JSON tool call representation
+                if content_str and not (content_str.startswith('{') or content_str.startswith('[')):
+                    return content_str
+                # Accept longer JSON responses (actual content, not tool calls)
+                if len(content_str) > 200:
+                    return content_str
 
     return "No response generated."
 
 
-def run_agent(agent, question: str) -> str:
+def run_agent(agent, question: str, system_prompt: str = None) -> str:
     """
     Run the agent synchronously with a question.
 
     Args:
         agent: The compiled agent
         question: User's question
+        system_prompt: Optional system prompt
 
     Returns:
         Agent's response
     """
     config = {"configurable": {"thread_id": "1"}}
 
+    # Build messages with system prompt
+    messages = []
+    if system_prompt:
+        messages.append(SystemMessage(content=system_prompt))
+    messages.append(HumanMessage(content=question))
+
     result = agent.invoke(
-        {"messages": [HumanMessage(content=question)]},
+        {"messages": messages},
         config=config,
     )
 
-    # Get the last AI message
+    # Get the last AI message with actual response content
     for message in reversed(result["messages"]):
-        if isinstance(message, AIMessage) and message.content:
-            return message.content
+        if isinstance(message, AIMessage):
+            # Skip messages that only contain tool calls without text content
+            if hasattr(message, 'tool_calls') and message.tool_calls:
+                if not message.content or not str(message.content).strip():
+                    continue
+
+            # Return string content if it's meaningful
+            if message.content:
+                content_str = str(message.content).strip()
+                # Skip if it looks like a JSON tool call representation
+                if content_str and not (content_str.startswith('{') or content_str.startswith('[')):
+                    return content_str
+                # Accept longer JSON responses (actual content, not tool calls)
+                if len(content_str) > 200:
+                    return content_str
 
     return "No response generated."
 

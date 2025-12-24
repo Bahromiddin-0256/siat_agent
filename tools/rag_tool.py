@@ -49,6 +49,7 @@ def initialize_rag_vectorstore(
 
     # Convert SDMX data to documents
     documents = []
+    seen_ids = set()  # Track unique IDs to prevent duplicates
 
     def extract_documents(items: list[dict[str, Any]], path: list[str] = None):
         """Recursively extract documents from nested structure."""
@@ -56,8 +57,20 @@ def initialize_rag_vectorstore(
             path = []
 
         for item in items:
-            # Only create documents for leaf nodes with codes
+            # Only create documents for items with codes
             if item.get('code'):
+                # Create a unique identifier
+                item_id = item.get('id')
+                item_code = item.get('code')
+
+                # Skip if we've already processed this ID
+                if item_id and item_id in seen_ids:
+                    continue
+
+                # Mark as seen
+                if item_id:
+                    seen_ids.add(item_id)
+
                 # Combine all name fields for better searchability
                 content_parts = []
 
@@ -87,8 +100,8 @@ def initialize_rag_vectorstore(
                 doc = Document(
                     page_content=content,
                     metadata={
-                        'id': item.get('id'),
-                        'code': item.get('code'),
+                        'id': str(item_id) if item_id else item_code,
+                        'code': item_code,
                         'name': item.get('name'),
                         'name_en': item.get('name_en'),
                         'name_ru': item.get('name_ru'),
@@ -112,11 +125,16 @@ def initialize_rag_vectorstore(
     # Create or load vector store
     persist_path = Path(persist_directory)
 
+    # Generate unique IDs for each document to prevent duplicates
+    ids = [f"sdmx_{doc.metadata.get('id', doc.metadata.get('code', i))}"
+           for i, doc in enumerate(documents)]
+
     # Always create a fresh vector store with current data
     _vector_store = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
         persist_directory=str(persist_path),
+        ids=ids,
     )
 
     return _vector_store
