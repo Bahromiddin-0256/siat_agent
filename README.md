@@ -91,7 +91,57 @@ uv pip install -e .
 
 ## Usage
 
-### Run Demo Examples
+### Web Chat Interface (Recommended)
+
+Start the FastAPI chat server:
+
+```bash
+# Option 1: Using the script
+./run_server.sh
+
+# Option 2: Using Python directly
+python app.py
+
+# Option 3: Using uvicorn
+uvicorn app:app --reload --port 8000
+```
+
+Then open your browser at `http://localhost:8000` to access the interactive chat interface.
+
+**Features:**
+- Modern, responsive web UI
+- Real-time chat with WebSocket support
+- Fallback to REST API mode
+- Example queries for quick start
+- Automatic reconnection
+- Mobile-friendly design
+
+### REST API Endpoints
+
+Once the server is running, you can also use the API directly:
+
+**POST /chat** - Send a chat message
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is the GDP indicator?"}'
+```
+
+**GET /health** - Health check
+```bash
+curl http://localhost:8000/health
+```
+
+**WebSocket /ws** - Real-time chat streaming
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws');
+ws.onmessage = (event) => console.log(event.data);
+ws.send('Find population indicators');
+```
+
+### Command Line Usage
+
+#### Run Demo Examples
 
 ```bash
 python main.py
@@ -102,7 +152,7 @@ This will demonstrate:
 2. RAG semantic search
 3. LangGraph agent with Ollama
 
-### Interactive Mode
+#### Interactive CLI Mode
 
 ```bash
 python main.py --interactive
@@ -130,8 +180,12 @@ Enter your question: semantic economic growth
 
 ```
 siat_agent/
+├── app.py                # FastAPI web server and chat interface
 ├── agent.py              # LangGraph ReAct agent with Ollama
-├── main.py               # Entry point and examples
+├── main.py               # CLI entry point and examples
+├── run_server.sh         # Script to start the web server
+├── static/
+│   └── chat.html         # Web chat interface
 ├── tools/
 │   ├── __init__.py
 │   ├── sdmx_tool.py      # Keyword-based search tools

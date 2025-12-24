@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDMX ID Retriever Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            height: 90vh;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status {
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+        }
+
+        .status-dot.disconnected {
+            background-color: #f44336;
+        }
+
+        .connection-mode {
+            font-size: 12px;
+            padding: 4px 12px;
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-radius: 12px;
+        }
+
+        #chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+
+        .message {
+            margin: 15px 0;
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-content {
+            background-color: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-content pre {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            overflow-x: auto;
+        }
+
+        .message.user .message-content pre {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 12px 16px;
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #999;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .input-container {
+            padding: 20px;
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #message-input:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background-color: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .toggle-switch.active {
+            background-color: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .example-queries {
+            padding: 10px 20px;
+            background-color: #fff9e6;
+            border-bottom: 1px solid #ffe0b2;
+            font-size: 12px;
+        }
+
+        .example-queries strong {
+            color: #f57c00;
+        }
+
+        .example-queries span {
+            color: #666;
+            cursor: pointer;
+            margin: 0 5px;
+            text-decoration: underline;
+        }
+
+        .example-queries span:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SDMX ID Retriever Chat</h1>
+            <p>Ask questions about statistical indicators in natural language</p>
+        </div>
+
+        <div class="status">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Connected</span>
+            </div>
+            <div class="mode-toggle">
+                <span style="font-size: 12px; color: #666;">WebSocket</span>
+                <div class="toggle-switch" id="mode-toggle" onclick="toggleMode()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="example-queries">
+            <strong>Try:</strong>
+            <span onclick="setExample('What is the SDMX ID for GDP data?')">GDP</span>
+            <span onclick="setExample('Find population indicators')">Population</span>
+            <span onclick="setExample('Show me export and import statistics')">Trade</span>
+        </div>
+
+        <div id="chat-box">
+            <div class="message bot">
+                <div class="message-content">
+                    Hello! I'm your SDMX assistant. Ask me about statistical indicators and I'll help you find the right SDMX IDs.
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="Type your question..." />
+            <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const modeToggle = document.getElementById('mode-toggle');
+
+        let useWebSocket = true;
+        let ws = null;
+
+        function connectWebSocket() {
+            if (!useWebSocket) return;
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                statusDot.classList.remove('disconnected');
+                statusText.textContent = 'Connected (WebSocket)';
+            };
+
+            ws.onmessage = function(event) {
+                hideTyping();
+                addMessage(event.data, false);
+            };
+
+            ws.onclose = function() {
+                statusDot.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function toggleMode() {
+            useWebSocket = !useWebSocket;
+            modeToggle.classList.toggle('active');
+
+            if (useWebSocket) {
+                connectWebSocket();
+            } else {
+                if (ws) {
+                    ws.close();
+                    ws = null;
+                }
+                statusText.textContent = 'REST API Mode';
+                statusDot.classList.remove('disconnected');
+            }
+        }
+
+        function addMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'user' : 'bot');
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            if (text.includes('\n') || text.includes('```')) {
+                contentDiv.innerHTML = formatMessage(text);
+            } else {
+                contentDiv.textContent = text;
+            }
+
+            messageDiv.appendChild(contentDiv);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function formatMessage(text) {
+            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre>$2</pre>');
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
+        function showTyping() {
+            typingIndicator.classList.add('active');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function hideTyping() {
+            typingIndicator.classList.remove('active');
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            messageInput.value = '';
+            showTyping();
+            sendButton.disabled = true;
+
+            try {
+                if (useWebSocket && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(message);
+                } else {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message: message }),
+                    });
+
+                    const data = await response.json();
+                    hideTyping();
+                    addMessage(data.response, false);
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage('Error: ' + error.message, false);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function setExample(text) {
+            messageInput.value = text;
+            messageInput.focus();
+        }
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initialize WebSocket connection
+        connectWebSocket();
+
+        // Focus input on load
+        messageInput.focus();
+    </script>
+</body>
+</html>
