@@ -1,51 +1,58 @@
+#!/usr/bin/env python3
 """
-Test script to debug the agent response.
+Test script for SDMX Agent with birth statistics question.
 """
+
 import asyncio
 from pathlib import Path
-from tools import initialize_sdmx_data, initialize_rag_vectorstore
-from tools import sdmx_tool
+
 from core.agent import create_sdmx_agent, run_agent_async
+from tools import initialize_sdmx_data, initialize_rag_vectorstore
 
 
-async def test():
+async def test_birth_statistics():
+    """Test the agent with the birth statistics question."""
+
     # Initialize data
-    json_path = Path(__file__).parent / "jsons" / "main.json"
-    initialize_sdmx_data(json_path)
+    json_file = Path("jsons/main.json")
+    print("Initializing SDMX data...")
+    initialize_sdmx_data(json_file)
+
+    print("Initializing RAG vectorstore...")
+    from tools import sdmx_tool
     initialize_rag_vectorstore(sdmx_tool._json_data)
 
     # Create agent
+    print("Creating agent...")
     agent, system_prompt = create_sdmx_agent()
 
     # Test question
-    question = "What is the SDMX ID for GDP data?"
-    print(f"Question: {question}\n")
+    question = "2013-yil Andijon viloyatida nechta bola tu'gilgan"
+    expected_answer = "Andijon viloyatida 2013-yil 64239 ta bola tu'gilgan"
 
-    # Run agent and get full result
-    from langchain_core.messages import HumanMessage, SystemMessage
+    print(f"\n{'='*70}")
+    print(f"Question: {question}")
+    print(f"Expected: {expected_answer}")
+    print(f"{'='*70}\n")
 
-    messages = []
-    if system_prompt:
-        messages.append(SystemMessage(content=system_prompt))
-    messages.append(HumanMessage(content=question))
-
-    result = await agent.ainvoke(
-        {"messages": messages},
-        config={"configurable": {"thread_id": "1"}},
-    )
-
-    print("All messages in result:")
-    print("=" * 80)
-    for i, msg in enumerate(result["messages"]):
-        print(f"\nMessage {i}: {type(msg).__name__}")
-        print(f"Content: {msg.content}")
-        if hasattr(msg, 'tool_calls'):
-            print(f"Tool calls: {msg.tool_calls}")
-        print("-" * 80)
-
-    # Try to get response
+    # Run agent
+    print("Running agent...\n")
     response = await run_agent_async(agent, question, system_prompt)
-    print(f"\nExtracted response: {response}")
+
+    print(f"\n{'='*70}")
+    print(f"Agent Response:")
+    print(f"{'='*70}")
+    print(response)
+    print(f"{'='*70}\n")
+
+    # Check if response contains the expected number
+    if "64239" in response and "Andijon" in response and "2013" in response:
+        print("✅ TEST PASSED: Response contains correct data!")
+    else:
+        print("❌ TEST FAILED: Response does not match expected answer")
+
+    return response
+
 
 if __name__ == "__main__":
-    asyncio.run(test())
+    asyncio.run(test_birth_statistics())

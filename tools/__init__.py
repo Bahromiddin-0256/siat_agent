@@ -13,6 +13,10 @@ from .rag_tool import (
     rebuild_vectorstore,
     get_vectorstore,
 )
+from .sdmx_data_retrieval_tool import (
+    get_sdmx_value,
+    get_sdmx_metadata,
+)
 
 __all__ = [
     "get_sdmx_id",
@@ -24,5 +28,7 @@ __all__ = [
     "initialize_rag_vectorstore",
     "rebuild_vectorstore",
     "get_vectorstore",
+    "get_sdmx_value",
+    "get_sdmx_metadata",
 ]
 

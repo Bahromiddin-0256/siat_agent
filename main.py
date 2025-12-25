@@ -1,149 +1,299 @@
 """
-SDMX ID Retriever Agent - Main Entry Point.
+FastAPI Chat Interface for SDMX Agent.
 
-This script demonstrates how to use the SDMX agent with Ollama to find
-statistical indicator IDs based on user questions using RAG and semantic search.
+This module provides a web-based chat interface for the SDMX ID retriever agent
+with both REST API and WebSocket support for real-time streaming.
 """
 
 from pathlib import Path
+from typing import List
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
+from core.agent import create_sdmx_agent, run_agent_async
 from core.settings import settings
-from tools import (
-    initialize_sdmx_data,
-    get_sdmx_id,
-    initialize_rag_vectorstore,
-    search_sdmx_semantic,
-)
-from core.agent import create_sdmx_agent, run_agent
+from tools import initialize_sdmx_data, initialize_rag_vectorstore
+from tools import sdmx_tool
+
+# Load environment variables
+
+# Global agent instance and system prompt
+agent = None
+system_prompt = None
 
 
-def load_and_initialize_data(json_path: Path):
-    """Load SDMX data and initialize both keyword and RAG search."""
+class ChatMessage(BaseModel):
+    """Chat message model."""
+    message: str
+
+
+class ChatResponse(BaseModel):
+    """Chat response model."""
+    response: str
+    status: str = "success"
+
+
+class ConnectionManager:
+    """Manages WebSocket connections."""
+
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+
+manager = ConnectionManager()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize the agent on startup."""
+    global agent, system_prompt
+
+    # Initialize SDMX data and RAG vector store
+    json_path = Path(__file__).parent / "jsons" / "main.json"
     print(f"Loading SDMX data from: {json_path}")
 
     # Initialize keyword-based search
-    data = initialize_sdmx_data(json_path)
+    initialize_sdmx_data(json_path)
     print("SDMX data loaded successfully!")
 
     # Initialize RAG vector store
     print("Initializing RAG vector store with embeddings...")
-    from tools.sdmx_tool import _json_data
-    initialize_rag_vectorstore(_json_data)
-    print("RAG vector store initialized successfully!\n")
+    initialize_rag_vectorstore(sdmx_tool._json_data)
+    print("RAG vector store initialized successfully!")
 
-    return data
-
-
-def main():
-    """Main entry point for the SDMX agent."""
-    # Initialize the SDMX data and RAG vector store
-    json_path = Path(__file__).parent / "jsons" / "main.json"
-    load_and_initialize_data(json_path)
-
-    # Example 1: Direct keyword-based search (without LLM)
-    print("=" * 60)
-    print("Example 1: Keyword-Based Search (No LLM)")
-    print("=" * 60)
-    result = get_sdmx_id.invoke({"question": "GDP gross domestic product"})
-    print(result)
-    print()
-
-    # Example 2: RAG-based semantic search (without LLM agent)
-    print("=" * 60)
-    print("Example 2: RAG Semantic Search (No LLM)")
-    print("=" * 60)
-    result = search_sdmx_semantic.invoke({"question": "economic growth indicators"})
-    print(result)
-    print()
-
-    # Example 3: Using the LangGraph agent with Ollama
-    # Check if Ollama is available
-    print("=" * 60)
-    print("Example 3: LangGraph Agent with Ollama")
-    print("=" * 60)
-
-    # Create the agent (will use Ollama)
+    # Create the agent
+    print("Creating SDMX agent...")
     agent, system_prompt = create_sdmx_agent()
 
-    # Ask questions
-    questions = [
-        "What is the SDMX ID for quarterly GDP data?",
-        "Find indicators related to population statistics",
-        "Show me export and import indicators",
-    ]
+    yield
 
-    for question in questions:
-        print(f"\nQuestion: {question}")
-        print("-" * 40)
-        response = run_agent(agent, question, system_prompt)
-        print(response)
-        print()
+    # Cleanup
+    print("Shutting down...")
 
 
+app = FastAPI(
+    title="SDMX ID Retriever Chat API",
+    description="Chat interface for finding statistical indicator IDs",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
-def interactive_mode():
-    """Run the agent in interactive mode."""
-    # Initialize data
-    json_path = Path(__file__).parent / "jsons" / "main.json"
-    load_and_initialize_data(json_path)
 
-    print("SDMX ID Retriever - Interactive Mode")
-    print("Type 'quit' to exit")
-    print("Commands: 'keyword <query>' for keyword search, 'semantic <query>' for RAG search")
-    print("Or just type your question to use the LangGraph agent\n")
+@app.get("/", response_class=HTMLResponse)
+async def get_chat_interface():
+    """Serve the chat interface HTML."""
+    html_file = Path(__file__).parent / "static" / "chat.html"
 
-    # Try to create the agent
-    use_agent = False
-    agent = None
-    system_prompt = None
+    if html_file.exists():
+        return html_file.read_text()
+
+    # Return a simple inline HTML if static file doesn't exist
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>SDMX Chat</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 20px;
+            }
+            #chat-box {
+                border: 1px solid #ccc;
+                height: 400px;
+                overflow-y: auto;
+                padding: 10px;
+                margin-bottom: 10px;
+                background-color: #f9f9f9;
+            }
+            .message {
+                margin: 10px 0;
+                padding: 8px;
+                border-radius: 5px;
+            }
+            .user {
+                background-color: #e3f2fd;
+                text-align: right;
+            }
+            .bot {
+                background-color: #f1f8e9;
+            }
+            #input-container {
+                display: flex;
+                gap: 10px;
+            }
+            #message-input {
+                flex-grow: 1;
+                padding: 10px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }
+            button {
+                padding: 10px 20px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>SDMX ID Retriever Chat</h1>
+        <div id="chat-box"></div>
+        <div id="input-container">
+            <input type="text" id="message-input" placeholder="Type your question..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <script>
+            const chatBox = document.getElementById('chat-box');
+            const messageInput = document.getElementById('message-input');
+
+            function addMessage(text, isUser) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ' + (isUser ? 'user' : 'bot');
+                messageDiv.textContent = text;
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                addMessage(message, true);
+                messageInput.value = '';
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message: message }),
+                    });
+
+                    const data = await response.json();
+                    addMessage(data.response, false);
+                } catch (error) {
+                    addMessage('Error: ' + error.message, false);
+                }
+            }
+
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(message: ChatMessage):
+    """
+    Chat endpoint for sending messages to the agent.
+
+    Args:
+        message: The user's message
+
+    Returns:
+        The agent's response
+    """
+    global agent, system_prompt
+
+    if not message.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
     try:
-        agent, system_prompt = create_sdmx_agent()
-        use_agent = True
-        print("Using LangGraph agent with Ollama")
-        print(f"Model: {settings.ollama_model}\n")
+        if agent is None:
+            # Fallback to semantic search if agent is not available
+            from tools import search_sdmx_semantic
+            result = search_sdmx_semantic.invoke({"question": message.message})
+            return ChatResponse(response=result)
+
+        # Use the agent with system prompt
+        response = await run_agent_async(agent, message.message, system_prompt)
+        return ChatResponse(response=response)
+
     except Exception as e:
-        print(f"Could not connect to Ollama: {e}")
-        print("Falling back to direct semantic search mode\n")
+        raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
-    while True:
-        try:
-            question = input("Enter your question: ").strip()
 
-            if question.lower() in ('quit', 'exit', 'q'):
-                print("Goodbye!")
-                break
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time chat streaming.
 
-            if not question:
+    Connects to the agent and streams responses token by token.
+    """
+    await manager.connect(websocket)
+
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+
+            if not data.strip():
                 continue
 
-            # Handle explicit commands
-            if question.lower().startswith('keyword '):
-                query = question[8:].strip()
-                response = get_sdmx_id.invoke({"question": query})
-            elif question.lower().startswith('semantic '):
-                query = question[9:].strip()
-                response = search_sdmx_semantic.invoke({"question": query})
-            elif use_agent:
-                # Use the agent
-                response = run_agent(agent, question, system_prompt)
-            else:
-                # Fallback to semantic search
-                response = search_sdmx_semantic.invoke({"question": question})
+            try:
+                global agent, system_prompt
 
-            print("\n" + response + "\n")
+                if agent is None:
+                    # Fallback to semantic search
+                    from tools import search_sdmx_semantic
+                    result = search_sdmx_semantic.invoke({"question": data})
+                    await manager.send_message(result, websocket)
+                else:
+                    # Use the agent with system prompt
+                    response = await run_agent_async(agent, data, system_prompt)
+                    await manager.send_message(response, websocket)
 
-        except KeyboardInterrupt:
-            print("\nGoodbye!")
-            break
-        except Exception as e:
-            print(f"\nError: {e}\n")
+            except Exception as e:
+                await manager.send_message(f"Error: {str(e)}", websocket)
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 
-if __name__ == '__main__':
-    import sys
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "agent_available": agent is not None,
+        "model": settings.ollama_model,
+    }
 
-    if len(sys.argv) > 1 and sys.argv[1] == '--interactive':
-        interactive_mode()
-    else:
-        main()
 
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(settings.port)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True
+    )
