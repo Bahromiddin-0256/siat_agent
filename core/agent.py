@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, System
 from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
 
-from .llm import llm
+from .llm import base_llm, _sanitize_tool_call_args
 from tools import (
     get_sdmx_id,
     get_sdmx_by_code,
@@ -101,7 +101,7 @@ Important: Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlr
 """
 
     # Create the ReAct agent
-    agent = create_agent(llm, tools)
+    agent = create_agent(base_llm, tools)
 
     return agent, system_prompt
 
@@ -130,6 +130,16 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         {"messages": messages},
         config=config,
     )
+
+    # Sanitize any odd tool_call payloads before we parse messages.
+    if isinstance(result, dict) and "messages" in result:
+        sanitized = []
+        for m in result["messages"]:
+            try:
+                sanitized.append(_sanitize_tool_call_args(m))
+            except Exception:
+                sanitized.append(m)
+        result["messages"] = sanitized
 
     # Get the last AI message with actual response content
     for message in reversed(result["messages"]):
@@ -176,6 +186,18 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         {"messages": messages},
         config=config,
     )
+
+    # Sanitize any odd tool_call payloads before we parse messages.
+    if isinstance(result, dict) and "messages" in result:
+        sanitized = []
+        for m in result["messages"]:
+            try:
+                sanitized.append(_sanitize_tool_call_args(m))
+            except Exception:
+                sanitized.append(m)
+        result["messages"] = sanitized
+
+    # ...existing code scanning for last AIMessage...
 
     for message in reversed(result["messages"]):
         if isinstance(message, AIMessage):

@@ -7,7 +7,7 @@ based on SDMX ID, year, and region/classifier to minimize LLM context.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from langchain_core.tools import tool
 
@@ -99,7 +99,7 @@ def extract_value_from_data(
 
 
 @tool
-def get_sdmx_value(sdmx_id: int, year: str, region: str = None) -> str:
+def get_sdmx_value(sdmx_id: int, year: str, region: Optional[str] = None) -> str:
     """
     Extract specific statistical value from SDMX data file with unit.
 
@@ -126,7 +126,7 @@ def get_sdmx_value(sdmx_id: int, year: str, region: str = None) -> str:
     if data is None:
         return f"Error: SDMX data file for ID {sdmx_id} not found in local storage (jsons/sdmxs/sdmx_data_{sdmx_id}.json)"
 
-    # Extract the data array and metadata
+    # Extract the data section and metadata
     if isinstance(data, list) and len(data) > 0:
         data_section = data[0].get('data', [])
         metadata = data[0].get('metadata', [])

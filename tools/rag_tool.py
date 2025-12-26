@@ -5,14 +5,13 @@ This tool uses vector embeddings and semantic search to find
 relevant SDMX IDs based on user questions.
 """
 
-import os
 from pathlib import Path
 from typing import Any
 
 from langchain_core.documents import Document
 from langchain_core.tools import tool
 from langchain_ollama import OllamaEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma.vectorstores import Chroma
 from langchain_core.vectorstores import VectorStore
 
 from core.settings import settings
@@ -23,7 +22,7 @@ _vector_store: VectorStore | None = None
 
 def initialize_rag_vectorstore(
     json_data: list[dict[str, Any]],
-    persist_directory: str = "./chroma_db",
+    persist_directory: str = None,
     embedding_model: str = None,
 ) -> VectorStore:
     """
@@ -38,6 +37,9 @@ def initialize_rag_vectorstore(
         Initialized vector store
     """
     global _vector_store
+
+    if persist_directory is None:
+        persist_directory = str(settings.chroma_persist_dir)
 
     if embedding_model is None:
         embedding_model = settings.ollama_embedding_model
@@ -158,7 +160,7 @@ def get_vectorstore() -> VectorStore | None:
 
 def rebuild_vectorstore(
     json_data: list[dict[str, Any]],
-    persist_directory: str = "./chroma_db",
+    persist_directory: str = None,
     embedding_model: str = None,
 ) -> VectorStore:
     """
@@ -167,6 +169,10 @@ def rebuild_vectorstore(
     This deletes the existing vector store and creates a new one.
     """
     import shutil
+
+    if persist_directory is None:
+        persist_directory = str(settings.chroma_persist_dir)
+
     persist_path = Path(persist_directory)
 
     # Remove existing vector store
@@ -178,7 +184,36 @@ def rebuild_vectorstore(
     return initialize_rag_vectorstore(json_data, persist_directory, embedding_model)
 
 
-@tool
+# --- Tool argument schemas (Groq can validate strictly) ---
+try:
+    # Pydantic v2
+    from pydantic import BaseModel, Field
+    from typing import Union
+
+    class _SemanticSearchArgs(BaseModel):
+        question: str = Field(..., description="A question about statistics")
+        k: Union[int, str] = Field(
+            10,
+            description="Number of results to return (int or a digit-string, e.g. 10 or '10')",
+        )
+
+    class _SearchWithScoreArgs(BaseModel):
+        question: str = Field(..., description="A question about statistics")
+        k: Union[int, str] = Field(
+            10,
+            description="Number of results to return (int or a digit-string)",
+        )
+        score_threshold: Union[float, str] = Field(
+            0.7,
+            description="Minimum similarity score (0-1). May be a float or a numeric string.",
+        )
+
+except Exception:  # pragma: no cover
+    _SemanticSearchArgs = None
+    _SearchWithScoreArgs = None
+
+
+@tool(args_schema=_SemanticSearchArgs) if _SemanticSearchArgs else tool
 def search_sdmx_semantic(question: str, k: int = 10) -> str:
     """
     Search for SDMX IDs using semantic similarity (RAG-based).
@@ -196,6 +231,19 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     """
     if _vector_store is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
+
+    # Defensive coercion: some models send tool args as strings (e.g., {"k": "10"}).
+    try:
+        if isinstance(k, str):
+            k = int(k)
+    except Exception:
+        k = 10
+
+    # Bound k to safe limits
+    if k <= 0:
+        k = 10
+    if k > 50:
+        k = 50
 
     # Perform semantic search
     results = _vector_store.similarity_search(question, k=k)
@@ -224,23 +272,33 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     return "\n".join(output_lines)
 
 
-@tool
+@tool(args_schema=_SearchWithScoreArgs) if _SearchWithScoreArgs else tool
 def search_sdmx_with_score(question: str, k: int = 10, score_threshold: float = 0.7) -> str:
-    """
-    Search for SDMX IDs with similarity scores.
-
-    Use this when you want to see how relevant each result is to the query.
-
-    Args:
-        question: A question about statistics
-        k: Number of results to return (default: 10)
-        score_threshold: Minimum similarity score (0-1, default: 0.7)
-
-    Returns:
-        Formatted string with matching SDMX IDs, details, and relevance scores
-    """
+    """Search for SDMX IDs with similarity scores."""
     if _vector_store is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
+
+    # Defensive coercion for tool-call args
+    try:
+        if isinstance(k, str):
+            k = int(k)
+    except Exception:
+        k = 10
+
+    try:
+        if isinstance(score_threshold, str):
+            score_threshold = float(score_threshold)
+    except Exception:
+        score_threshold = 0.7
+
+    if k <= 0:
+        k = 10
+    if k > 50:
+        k = 50
+
+    # Clamp threshold
+    if score_threshold <= 0 or score_threshold > 1:
+        score_threshold = 0.7
 
     # Perform similarity search with scores
     results = _vector_store.similarity_search_with_score(question, k=k)

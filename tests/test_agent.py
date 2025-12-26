@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""
-Test script for SDMX Agent with birth statistics question.
-"""
+"""Test script for SDMX Agent with birth statistics question."""
 
 import asyncio
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from core.agent import create_sdmx_agent, run_agent_async
 from tools import initialize_sdmx_data, initialize_rag_vectorstore
-
 
 async def test_birth_statistics():
     """Test the agent with the birth statistics question."""
