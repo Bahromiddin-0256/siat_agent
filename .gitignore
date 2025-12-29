@@ -5,3 +5,4 @@ chroma_db/
 /jsons/sdmxs/
 .env
 logs/
+metadata_chroma_db/
