@@ -23,6 +23,14 @@ from tools import (
     get_sdmx_value,
     get_sdmx_metadata,
     calculate_yearly_growth,
+    calculate_statistics,
+    calculate_cagr,
+    compare_regions,
+    rank_regions,
+    calculate_percentage_share,
+    compare_years,
+    calculate_period_total,
+    calculate_moving_average,
 )
 
 
@@ -46,14 +54,31 @@ def create_sdmx_agent(
 
     # Define the tools
     tools = [
+        # Search and discovery tools
         search_sdmx_semantic,  # RAG-based semantic search (primary)
         search_sdmx_with_score,  # RAG search with relevance scores
         get_sdmx_id,  # Keyword-based search (fallback)
         get_sdmx_by_code,  # Get by specific code
         list_sdmx_categories,  # Browse categories
+
+        # Data extraction tools
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata
+
+        # Time series analysis tools
         calculate_yearly_growth,  # Calculate year-over-year growth rates
+        calculate_statistics,  # Descriptive statistics (mean, median, min, max, std dev)
+        calculate_cagr,  # Compound Annual Growth Rate
+        calculate_period_total,  # Total sum over period
+        calculate_moving_average,  # Moving average for smoothed trends
+
+        # Regional comparison tools
+        compare_regions,  # Compare multiple regions for a year
+        rank_regions,  # Rank regions by value
+        calculate_percentage_share,  # Regional percentage distribution
+
+        # Comparison tools
+        compare_years,  # Compare two specific years
     ]
 
     # System prompt for the agent
@@ -61,6 +86,19 @@ def create_sdmx_agent(
 
 You have access to a database of statistical indicators from Uzbekistan's statistics agency.
 The data includes economic statistics, social statistics, demographic data, and more.
+
+PRECISION AND VALIDATION RULES:
+1. **Always verify indicator selection**: Before extracting data, confirm the SDMX ID matches user intent
+2. **Handle ambiguity explicitly**:
+   - If multiple similar indicators exist (e.g., "jami" vs "qiz bolalar" vs "o'g'il bolalar"), list ALL variants
+   - Ask for clarification if unclear which variant to use
+   - Prefer "jami" (total) unless user specifies subcategory
+3. **Validate data availability**:
+   - Check year ranges exist before calculations
+   - Verify region names match available data
+   - Warn user if requested data is missing
+4. **Always include units**: Show measurement units (kishi, mlrd. so'm, etc.) in all responses
+5. **Structured output**: Include indicator name, SDMX ID, region, year(s), and unit in responses
 
 Available tools:
 1. **search_sdmx_semantic**: Use this FIRST for finding indicators. It uses AI embeddings
@@ -75,7 +113,38 @@ Available tools:
 8. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
    Required when user asks for "o'sish foizi", "growth rate", "percentage change", "trend" over time.
 
-Best practices:
+STATISTICAL ANALYSIS TOOLS:
+9. **calculate_statistics**: Calculate descriptive statistics (mean, median, min, max, std dev, total) over a time period.
+   Keywords: "o'rtacha", "average", "minimal", "maksimal", "statistika"
+10. **calculate_cagr**: Calculate Compound Annual Growth Rate between two years.
+   Keywords: "CAGR", "yillik o'rtacha o'sish", "compound growth"
+11. **compare_regions**: Compare multiple regions for a specific year with ranking and percentages.
+   Keywords: "solishtirish", "compare", "viloyatlar", "regions"
+12. **rank_regions**: Rank all regions by indicator value for a specific year.
+   Keywords: "reyting", "ranking", "eng yuqori", "eng past", "top"
+13. **calculate_percentage_share**: Calculate each region's percentage share of total.
+   Keywords: "ulush", "foiz", "percentage share", "distribution", "taqsimot"
+14. **compare_years**: Compare two specific years with absolute and percentage change.
+   Keywords: "solishtir", "compare years", "farq", "o'zgarish"
+15. **calculate_period_total**: Calculate total sum across a time period.
+   Keywords: "jami", "umumiy", "total", "sum"
+16. **calculate_moving_average**: Calculate moving average for smoothed trends.
+   Keywords: "trend", "silliq o'sish", "smoothed", "harakatlanuvchi o'rtacha"
+
+Best practices and tool selection guide:
+
+TERMINOLOGY MAPPING (select appropriate tool based on keywords):
+- "o'rtacha" / "average" → calculate_statistics
+- "eng yuqori" / "eng past" → rank_regions
+- "solishtirish" / "compare" + regions → compare_regions
+- "solishtirish" / "compare" + years → compare_years
+- "ulush" / "share" → calculate_percentage_share
+- "jami" / "total" / "umumiy" → calculate_period_total
+- "CAGR" / "yillik o'rtacha o'sish" → calculate_cagr
+- "trend" / "silliq" → calculate_moving_average
+- "o'sish foizi" / "growth rate" → calculate_yearly_growth
+- "reyting" / "ranking" → rank_regions
+
 - For questions asking "what data is available" or "what statistics do you have":
   * Direct users to the full catalog at https://siat.stat.uz
   * Example: "To'liq katalogni https://siat.stat.uz da ko'rishingiz mumkin."

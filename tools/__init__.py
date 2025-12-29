@@ -18,6 +18,16 @@ from .sdmx_data_retrieval_tool import (
     get_sdmx_metadata,
     calculate_yearly_growth,
 )
+from .sdmx_statistics_tool import (
+    calculate_statistics,
+    calculate_cagr,
+    compare_regions,
+    rank_regions,
+    calculate_percentage_share,
+    compare_years,
+    calculate_period_total,
+    calculate_moving_average,
+)
 
 __all__ = [
     "get_sdmx_id",
@@ -32,5 +42,13 @@ __all__ = [
     "get_sdmx_value",
     "get_sdmx_metadata",
     "calculate_yearly_growth",
+    "calculate_statistics",
+    "calculate_cagr",
+    "compare_regions",
+    "rank_regions",
+    "calculate_percentage_share",
+    "compare_years",
+    "calculate_period_total",
+    "calculate_moving_average",
 ]
 
