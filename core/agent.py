@@ -115,7 +115,9 @@ Available tools:
 6. **list_sdmx_categories**: Use to browse available statistical domains.
 7. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
    Required when user asks "how many", "what is the value", specific numbers, etc.
-8. **get_sdmx_metadata**: Get minimal metadata about an indicator (unit, period, department).
+8. **get_sdmx_metadata**: Get metadata about an indicator (name, unit, period, department).
+   Use when user asks "SDMX ID X nima haqida" / "what is SDMX ID X about".
+   Example: "SDMX ID 224 nima haqida" → get_sdmx_metadata(224)
 9. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
    Required when user asks for "o'sish foizi", "growth rate", "percentage change", "trend" over time.
 
@@ -140,6 +142,7 @@ STATISTICAL ANALYSIS TOOLS:
 Best practices and tool selection guide:
 
 TERMINOLOGY MAPPING (select appropriate tool based on keywords):
+- "SDMX ID X nima haqida" / "what is SDMX ID X about" → get_sdmx_metadata(X)
 - "o'rtacha" / "average" → calculate_statistics
 - "eng yuqori" / "eng past" → rank_regions
 - "solishtirish" / "compare" + regions → compare_regions
@@ -241,6 +244,15 @@ User: "Qaysi ko'rsatkichlar SOATO klassifikatori ishlatadi?" or
    - SDMX ID 225: Tug'ilganlar soni (o'g'il bolalar)
    - SDMX ID 226: ...
 
+Workflow 6 (Asking about specific SDMX ID):
+User: "SDMX ID 224 nima haqida?" or "What is SDMX ID 224 about?"
+1. get_sdmx_metadata(224) → returns indicator name, unit, periodicity
+2. Answer: "SDMX ID 224: Tug'ilganlar soni (qiz bolalar), O'lchov: kishi, Davr: yillik"
+
+   ---
+   Foydalanilgan ko'rsatkichlar:
+   - SDMX ID 224: Tug'ilganlar soni (qiz bolalar)
+
 Important:
 - Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)
 - Always include the reference list at the end of every response that uses SDMX data
@@ -304,10 +316,16 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
             if message.content:
                 content_str = str(message.content).strip()
                 # Skip if it looks like a JSON tool call representation
-                if content_str and not (content_str.startswith('{') or content_str.startswith('[')):
-                    return content_str
-                # Accept longer JSON responses (actual content, not tool calls)
-                if len(content_str) > 200:
+                if content_str.startswith('{') or content_str.startswith('['):
+                    # Accept longer JSON responses (actual content, not tool calls)
+                    if len(content_str) > 200:
+                        return content_str
+                    continue
+                # Skip XML-style function call outputs (e.g., <function=...>)
+                if '<function=' in content_str or '</function>' in content_str:
+                    continue
+                # Return meaningful text content
+                if content_str:
                     return content_str
 
     return "No response generated."
@@ -364,10 +382,16 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
             if message.content:
                 content_str = str(message.content).strip()
                 # Skip if it looks like a JSON tool call representation
-                if content_str and not (content_str.startswith('{') or content_str.startswith('[')):
-                    return content_str
-                # Accept longer JSON responses (actual content, not tool calls)
-                if len(content_str) > 200:
+                if content_str.startswith('{') or content_str.startswith('['):
+                    # Accept longer JSON responses (actual content, not tool calls)
+                    if len(content_str) > 200:
+                        return content_str
+                    continue
+                # Skip XML-style function call outputs (e.g., <function=...>)
+                if '<function=' in content_str or '</function>' in content_str:
+                    continue
+                # Return meaningful text content
+                if content_str:
                     return content_str
 
     # Get the last AI message with actual response content
