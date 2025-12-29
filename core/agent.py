@@ -100,6 +100,15 @@ Best practices:
   * Example format: "Men '[Indicator Name]' ko'rsatkichidan foydalandim (SDMX ID [id])"
   * This ensures transparency and allows users to verify the correct indicator is being used
 - If multiple similar indicators exist, mention them and explain why you chose one
+- At the END of your response, ALWAYS include a "Foydalanilgan ko'rsatkichlar:" section listing all SDMX IDs used:
+  * Format:
+    ```
+    ---
+    Foydalanilgan ko'rsatkichlar:
+    - SDMX ID [id]: [Indicator Name]
+    - SDMX ID [id]: [Indicator Name]
+    ```
+  * This provides a clear reference list for users
 - Always provide clear, helpful responses in the same language as the question
 - When answering with actual data, format naturally in the user's language
 
@@ -120,24 +129,34 @@ User: "2013-yil Andijon viloyatida nechta bola tu'gilgan?"
 4. get_sdmx_value(chosen_id, "2013", "Andijon")
 5. Answer: "Andijon viloyatida 2013-yil **jami** 64239 ta bola tu'gilgan.
 
-   Ko'rsatkich: Tug'ilganlar soni (jami), SDMX ID: [actual_id]
+   ---
+   Foydalanilgan ko'rsatkichlar:
+   - SDMX ID [id]: Tug'ilganlar soni (jami)"
 
-   Eslatma: Agar boshqa variantlar (qiz/o'g'il bolalar) kerak bo'lsa, ayting."
-
-CRITICAL: Always state which specific indicator you used to ensure consistency
+CRITICAL: Always include the reference list at the end
 
 Workflow 3 (Year-over-year growth rates):
 User: "SDMX ID 2441 ma'lumotlar bo'yicha yillik o'sish foizlarni chiqar"
 1. calculate_yearly_growth(2441) → returns table with years, values, and growth percentages
 2. Answer: Present the table showing year-over-year growth rates
 
+   ---
+   Foydalanilgan ko'rsatkichlar:
+   - SDMX ID 2441: Doimiy aholi soni (jami)
+
 Workflow 4 (Investment statistics with units):
 User: "Asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 2023"
 1. search_sdmx_semantic("asosiy kapitalga investitsiyalar") → finds SDMX ID 1326
 2. get_sdmx_value(1326, "2023") → returns "O'zbekiston Respublikasi 2023-yilda 356071.4 mlrd. so'm"
-3. Answer: "2023-yilda O'zbekistonda asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 356071.4 mlrd. so'mni tashkil etdi."
+3. Answer: "2023-yilda O'zbekistonda asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 356071.4 mlrd. so'mni tashkil etdi.
 
-Important: Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)
+   ---
+   Foydalanilgan ko'rsatkichlar:
+   - SDMX ID 1326: Asosiy kapitalga o'zlashtirilgan investitsiyalar"
+
+Important:
+- Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)
+- Always include the reference list at the end of every response that uses SDMX data
 """
 
     # Create the ReAct agent
