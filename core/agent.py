@@ -5,8 +5,9 @@ This module implements a ReAct agent that can search for SDMX IDs
 based on user questions using LangGraph's prebuilt agent with Ollama.
 """
 from typing import Annotated, Any, TypedDict
+from datetime import datetime
 
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
 
@@ -396,4 +397,133 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
 
     # Get the last AI message with actual response content
     return "No response generated."
+
+
+def extract_final_response(messages: list[BaseMessage]) -> str:
+    """
+    Extract the final response from the agent's message history.
+
+    Args:
+        messages: List of messages from agent result
+
+    Returns:
+        Final text response or "No response generated."
+    """
+    # Get the last AI message with actual response content
+    for message in reversed(messages):
+        if isinstance(message, AIMessage):
+            # Skip messages that only contain tool calls without text content
+            if hasattr(message, 'tool_calls') and message.tool_calls:
+                if not message.content or not str(message.content).strip():
+                    continue
+
+            # Return string content if it's meaningful
+            if message.content:
+                content_str = str(message.content).strip()
+                # Skip if it looks like a JSON tool call representation
+                if content_str.startswith('{') or content_str.startswith('['):
+                    # Accept longer JSON responses (actual content, not tool calls)
+                    if len(content_str) > 200:
+                        return content_str
+                    continue
+                # Skip XML-style function call outputs (e.g., <function=...>)
+                if '<function=' in content_str or '</function>' in content_str:
+                    continue
+                # Return meaningful text content
+                if content_str:
+                    return content_str
+
+    return "No response generated."
+
+
+async def run_agent_async_stream(agent, question: str, system_prompt: str = None):
+    """
+    Run agent and yield intermediate tool calls as they happen.
+
+    Args:
+        agent: The compiled agent
+        question: User's question
+        system_prompt: Optional system prompt
+
+    Yields:
+        dict: Streaming messages with type, tool info, and results
+    """
+    logger.info(f"Running agent async with streaming for question: {question[:100]}...")
+    config = {"configurable": {"thread_id": "1"}}
+
+    try:
+        # Build messages
+        messages = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=question))
+
+        # Invoke agent
+        result = await agent.ainvoke({"messages": messages}, config=config)
+        logger.debug("Agent invocation completed")
+
+        # Sanitize tool calls
+        if isinstance(result, dict) and "messages" in result:
+            sanitized = []
+            for m in result["messages"]:
+                try:
+                    sanitized.append(_sanitize_tool_call_args(m))
+                except (AttributeError, TypeError, ValueError) as e:
+                    logger.warning(f"Failed to sanitize tool call args for message: {e}")
+                    sanitized.append(m)
+            result["messages"] = sanitized
+
+        # Process messages sequentially and yield tool steps
+        for message in result["messages"]:
+            if isinstance(message, AIMessage):
+                # Check for tool calls
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    for tool_call in message.tool_calls:
+                        # Get tool name and args
+                        tool_name = tool_call.get("name") if isinstance(tool_call, dict) else getattr(tool_call, "name", None)
+                        tool_args = tool_call.get("args") if isinstance(tool_call, dict) else getattr(tool_call, "args", None)
+
+                        yield {
+                            "type": "tool_start",
+                            "tool_name": tool_name,
+                            "tool_args": tool_args,
+                            "timestamp": datetime.now().isoformat()
+                        }
+
+            elif isinstance(message, ToolMessage):
+                # Ensure content is string and handle edge cases
+                tool_result = message.content
+
+                # Defensive: ensure it's a string
+                if not isinstance(tool_result, str):
+                    logger.warning(f"ToolMessage.content is not string: {type(tool_result)}, converting...")
+                    tool_result = str(tool_result)
+
+                # Optional: Truncate extremely long results (10KB limit)
+                max_length = 10000
+                if len(tool_result) > max_length:
+                    logger.warning(f"Tool result truncated from {len(tool_result)} to {max_length} chars")
+                    tool_result = tool_result[:max_length] + "\n... (truncated)"
+
+                yield {
+                    "type": "tool_result",
+                    "tool_result": tool_result,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+        # Send final response
+        final_response = extract_final_response(result["messages"])
+        yield {
+            "type": "response",
+            "content": final_response,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error in agent streaming: {e}", exc_info=True)
+        yield {
+            "type": "error",
+            "content": f"Error processing request: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
 

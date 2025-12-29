@@ -292,6 +292,131 @@
         .example-queries span:hover {
             color: #333;
         }
+
+        /* Tool Steps Container */
+        .tool-steps {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        /* Individual Tool Step */
+        .tool-step {
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .tool-step:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Tool Step Header (Clickable) */
+        .tool-step-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .tool-step-header:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%);
+        }
+
+        .tool-icon {
+            font-size: 18px;
+            margin-right: 10px;
+        }
+
+        .tool-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .expand-icon {
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        /* Tool Step Details (Collapsible) */
+        .tool-step-details {
+            padding: 15px;
+            background: white;
+            max-height: 500px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .tool-step-details.collapsed {
+            max-height: 0;
+            padding: 0 15px;
+            overflow: hidden;
+        }
+
+        .tool-section {
+            margin-bottom: 12px;
+        }
+
+        .tool-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .tool-section strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .tool-section pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        /* Tool Result Placeholder (Loading) */
+        .tool-result-placeholder {
+            padding: 10px;
+            background: #fffbf0;
+            border-radius: 4px;
+            border: 1px dashed #ffd700;
+            text-align: center;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            font-size: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Response Text */
+        .response-text {
+            line-height: 1.6;
+        }
+
+        .response-text:empty {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -352,6 +477,98 @@
 
         let useWebSocket = true;
         let ws = null;
+        let currentBotMessage = null;
+        let currentToolStep = null;
+
+        function createBotMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            // Add tool steps container
+            const toolStepsDiv = document.createElement('div');
+            toolStepsDiv.className = 'tool-steps';
+            toolStepsDiv.style.display = 'none'; // Hidden until tools are used
+
+            // Add response text container
+            const responseDiv = document.createElement('div');
+            responseDiv.className = 'response-text';
+
+            contentDiv.appendChild(toolStepsDiv);
+            contentDiv.appendChild(responseDiv);
+            messageDiv.appendChild(contentDiv);
+
+            return { messageDiv, toolStepsDiv, responseDiv };
+        }
+
+        function addToolStep(toolStepsDiv, toolName, toolArgs) {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'tool-step';
+
+            // Header (clickable to expand/collapse)
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'tool-step-header';
+            headerDiv.innerHTML = `
+                <span class="tool-icon">🔧</span>
+                <span class="tool-name">${toolName}</span>
+                <span class="expand-icon">▼</span>
+            `;
+
+            // Details (collapsible content)
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'tool-step-details collapsed';
+            detailsDiv.innerHTML = `
+                <div class="tool-section">
+                    <strong>Parameters:</strong>
+                    <pre>${JSON.stringify(toolArgs, null, 2)}</pre>
+                </div>
+                <div class="tool-result-placeholder">
+                    <span class="loading-spinner">⟳</span> Executing...
+                </div>
+            `;
+
+            // Toggle collapse on header click
+            headerDiv.addEventListener('click', () => {
+                detailsDiv.classList.toggle('collapsed');
+                const icon = headerDiv.querySelector('.expand-icon');
+                icon.textContent = detailsDiv.classList.contains('collapsed') ? '▼' : '▲';
+            });
+
+            stepDiv.appendChild(headerDiv);
+            stepDiv.appendChild(detailsDiv);
+            toolStepsDiv.appendChild(stepDiv);
+
+            // Show tool steps container
+            toolStepsDiv.style.display = 'block';
+
+            return detailsDiv;
+        }
+
+        function updateToolResult(detailsDiv, result) {
+            const placeholder = detailsDiv.querySelector('.tool-result-placeholder');
+
+            // Clear placeholder content
+            placeholder.innerHTML = '';
+
+            // Create tool section div
+            const toolSection = document.createElement('div');
+            toolSection.className = 'tool-section';
+
+            // Create strong label
+            const label = document.createElement('strong');
+            label.textContent = 'Result:';
+
+            // Create pre element and set content safely
+            const pre = document.createElement('pre');
+            pre.textContent = result;  // Safe: textContent auto-escapes HTML
+
+            // Assemble elements
+            toolSection.appendChild(label);
+            toolSection.appendChild(pre);
+            placeholder.appendChild(toolSection);
+        }
 
         function connectWebSocket() {
             if (!useWebSocket) return;
@@ -367,8 +584,61 @@
             };
 
             ws.onmessage = function(event) {
-                hideTyping();
-                addMessage(event.data, false);
+                try {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type === 'tool_start') {
+                        // Create tool step if it's the first one
+                        if (!currentBotMessage) {
+                            const { messageDiv, toolStepsDiv, responseDiv } = createBotMessage();
+                            currentBotMessage = { messageDiv, toolStepsDiv, responseDiv };
+                            currentToolStep = null;
+                            chatBox.appendChild(messageDiv);
+                        }
+
+                        // Add tool step with loading indicator
+                        currentToolStep = addToolStep(
+                            currentBotMessage.toolStepsDiv,
+                            message.tool_name,
+                            message.tool_args
+                        );
+
+                        // Auto-scroll
+                        chatBox.scrollTop = chatBox.scrollHeight;
+
+                    } else if (message.type === 'tool_result') {
+                        // Update the most recent tool step with result
+                        if (currentToolStep) {
+                            updateToolResult(currentToolStep, message.tool_result);
+                            chatBox.scrollTop = chatBox.scrollHeight;
+                        }
+
+                    } else if (message.type === 'response') {
+                        // Add final response text
+                        if (currentBotMessage) {
+                            currentBotMessage.responseDiv.innerHTML = formatMessage(message.content);
+                            currentBotMessage = null;
+                            currentToolStep = null;
+                        } else {
+                            // Fallback if no tools were used
+                            addMessage(message.content, false);
+                        }
+
+                        hideTyping();
+                        chatBox.scrollTop = chatBox.scrollHeight;
+
+                    } else if (message.type === 'error') {
+                        addMessage('Error: ' + message.content, false);
+                        hideTyping();
+                        currentBotMessage = null;
+                    }
+
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                    // Fallback to old behavior for non-JSON messages
+                    hideTyping();
+                    addMessage(event.data, false);
+                }
             };
 
             ws.onclose = function() {

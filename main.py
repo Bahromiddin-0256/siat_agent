@@ -6,13 +6,17 @@ with both REST API and WebSocket support for real-time streaming.
 """
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
+from enum import Enum
+from datetime import datetime
+import json
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from core.agent import create_sdmx_agent, run_agent_async
+from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
 from core.settings import settings
 from core.logger import setup_logger
 from tools import initialize_sdmx_data, initialize_rag_vectorstore, initialize_metadata_vectorstore
@@ -36,6 +40,24 @@ class ChatResponse(BaseModel):
     """Chat response model."""
     response: str
     status: str = "success"
+
+
+class MessageType(str, Enum):
+    """Message types for streaming responses."""
+    TOOL_START = "tool_start"
+    TOOL_RESULT = "tool_result"
+    RESPONSE = "response"
+    ERROR = "error"
+
+
+class ToolCallMessage(BaseModel):
+    """Tool call message for streaming."""
+    type: MessageType
+    tool_name: Optional[str] = None
+    tool_args: Optional[Dict[str, Any]] = None
+    tool_result: Optional[str] = None
+    content: Optional[str] = None
+    timestamp: Optional[str] = None
 
 
 class ConnectionManager:
@@ -284,20 +306,41 @@ async def websocket_endpoint(websocket: WebSocket):
                 global agent, system_prompt
 
                 if agent is None:
-                    # Fallback to semantic search
-                    logger.warning("Agent not available, using fallback semantic search")
-                    from tools import search_sdmx_semantic
-                    result = search_sdmx_semantic.invoke({"question": data})
-                    await manager.send_message(result, websocket)
+                    # Fallback error message
+                    await manager.send_message(
+                        json.dumps({"type": "error", "content": "Agent not available"}),
+                        websocket
+                    )
                 else:
-                    # Use the agent with system prompt
-                    response = await run_agent_async(agent, data, system_prompt)
-                    await manager.send_message(response, websocket)
-                    logger.info("WebSocket response sent successfully")
+                    # Stream tool steps and final response
+                    async for message in run_agent_async_stream(agent, data, system_prompt):
+                        try:
+                            # Serialize with Unicode support and fallback
+                            json_message = json.dumps(
+                                message,
+                                ensure_ascii=False,  # Preserve Unicode (Uzbek/Cyrillic)
+                                default=str           # Fallback: convert any non-serializable to string
+                            )
+                            await manager.send_message(json_message, websocket)
+                        except (TypeError, ValueError) as e:
+                            # Log serialization error
+                            logger.error(f"JSON serialization error for message type {message.get('type', 'unknown')}: {e}", exc_info=True)
+
+                            # Send error message to client
+                            error_message = json.dumps({
+                                "type": "error",
+                                "content": f"Failed to serialize message: {str(e)}",
+                                "timestamp": datetime.now().isoformat()
+                            }, ensure_ascii=False)
+                            await manager.send_message(error_message, websocket)
+                    logger.info("WebSocket streaming completed")
 
             except Exception as e:
                 logger.error(f"Error processing WebSocket message: {e}", exc_info=True)
-                await manager.send_message(f"Error: {str(e)}", websocket)
+                await manager.send_message(
+                    json.dumps({"type": "error", "content": str(e)}),
+                    websocket
+                )
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
