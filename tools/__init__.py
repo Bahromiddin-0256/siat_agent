@@ -16,6 +16,7 @@ from .rag_tool import (
 from .sdmx_data_retrieval_tool import (
     get_sdmx_value,
     get_sdmx_metadata,
+    calculate_yearly_growth,
 )
 
 __all__ = [
@@ -30,5 +31,6 @@ __all__ = [
     "get_vectorstore",
     "get_sdmx_value",
     "get_sdmx_metadata",
+    "calculate_yearly_growth",
 ]
 

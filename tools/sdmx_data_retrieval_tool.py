@@ -7,9 +7,12 @@ based on SDMX ID, year, and region/classifier to minimize LLM context.
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from langchain_core.tools import tool
+from core.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def load_sdmx_data_file(sdmx_id: int, base_dir: str = "jsons/sdmxs") -> Optional[dict]:
@@ -214,3 +217,149 @@ def get_sdmx_metadata(sdmx_id: int) -> str:
         lines.append(f"  Davr: {info['period']}")
 
     return "\n".join(lines)
+
+
+@tool
+def calculate_yearly_growth(
+    sdmx_id: int,
+    start_year: Optional[str] = None,
+    end_year: Optional[str] = None,
+    region: Optional[str] = None
+) -> str:
+    """
+    Calculate year-over-year growth percentages for an SDMX indicator across multiple years.
+
+    Use this tool when users ask for growth rates, percentage changes, or trends over time.
+    Calculates the percentage change from one year to the next.
+
+    Args:
+        sdmx_id: The SDMX identifier (e.g., 2441 for population)
+        start_year: Optional starting year (e.g., "2020"). If not specified, uses earliest available year.
+        end_year: Optional ending year (e.g., "2023"). If not specified, uses latest available year.
+        region: Optional region name. If not specified, uses total/national level data.
+
+    Returns:
+        Formatted string with year-over-year growth percentages
+
+    Example:
+        calculate_yearly_growth(sdmx_id=2441, start_year="2020", end_year="2023")
+        Returns table with years and their growth rates
+    """
+    logger.info(f"Calculating yearly growth for SDMX ID {sdmx_id}")
+
+    # Load the data file
+    data = load_sdmx_data_file(sdmx_id)
+
+    if data is None:
+        return f"Error: SDMX data file for ID {sdmx_id} not found"
+
+    # Extract the data section and metadata
+    if isinstance(data, list) and len(data) > 0:
+        data_section = data[0].get('data', [])
+        metadata = data[0].get('metadata', [])
+    else:
+        return f"Error: Invalid data format in SDMX file {sdmx_id}"
+
+    # Extract unit from metadata
+    unit = "kishi"  # default
+    indicator_name = ""
+    for item in metadata:
+        name_en = item.get('name_en', '').lower()
+        if 'unit of measurement' in name_en or 'unit' in name_en:
+            unit = item.get('value_uz', 'kishi')
+        elif 'indicator name' in name_en or 'dataset name' in name_en:
+            indicator_name = item.get('value_uz', '')
+
+    # Find the appropriate data row (for region or total)
+    target_row = None
+    region_name = "O'zbekiston Respublikasi"
+
+    for row in data_section:
+        if not isinstance(row, dict):
+            continue
+
+        if region:
+            # Search for specific region
+            region_lower = region.lower()
+            klassifikator = str(row.get('Klassifikator', '')).lower()
+            klassifikator_ru = str(row.get('Klassifikator_ru', '')).lower()
+            klassifikator_en = str(row.get('Klassifikator_en', '')).lower()
+
+            if (region_lower in klassifikator or
+                region_lower in klassifikator_ru or
+                region_lower in klassifikator_en):
+                target_row = row
+                region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or region
+                break
+        else:
+            # Use first row (usually total/national)
+            target_row = row
+            region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or "O'zbekiston Respublikasi"
+            break
+
+    if target_row is None:
+        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}" + (f", mintaqa '{region}'" if region else "")
+
+    # Extract all available years and values
+    year_data = []
+    for key, value in target_row.items():
+        if key.isdigit() and value is not None:
+            try:
+                year_data.append((int(key), float(value)))
+            except (ValueError, TypeError):
+                continue
+
+    # Sort by year
+    year_data.sort()
+
+    if len(year_data) < 2:
+        return f"Kamida 2 yillik ma'lumot kerak o'sish foizini hisoblash uchun. Mavjud: {len(year_data)} yil"
+
+    # Filter by start_year and end_year if specified
+    if start_year:
+        try:
+            start_yr = int(start_year)
+            year_data = [(y, v) for y, v in year_data if y >= start_yr]
+        except ValueError:
+            pass
+
+    if end_year:
+        try:
+            end_yr = int(end_year)
+            year_data = [(y, v) for y, v in year_data if y <= end_yr]
+        except ValueError:
+            pass
+
+    if len(year_data) < 2:
+        return f"Tanlangan davr uchun kamida 2 yillik ma'lumot kerak. Mavjud yillar: {start_year}-{end_year}"
+
+    # Calculate year-over-year growth rates
+    results = []
+    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    results.append(f"Mintaqa: {region_name}")
+    results.append(f"O'lchov birligi: {unit}")
+    results.append("")
+    results.append("Yillik o'sish foizlari:")
+    results.append("")
+
+    # Header
+    results.append(f"{'Yil':<8} {'Qiymat':<15} {'O\'sish %':<12}")
+    results.append("-" * 40)
+
+    # First year (no growth to calculate)
+    first_year, first_value = year_data[0]
+    results.append(f"{first_year:<8} {first_value:<15.1f} {'-':<12}")
+
+    # Subsequent years with growth rates
+    for i in range(1, len(year_data)):
+        year, value = year_data[i]
+        prev_year, prev_value = year_data[i-1]
+
+        if prev_value != 0:
+            growth_rate = ((value - prev_value) / prev_value) * 100
+            results.append(f"{year:<8} {value:<15.1f} {growth_rate:>+11.2f}%")
+        else:
+            results.append(f"{year:<8} {value:<15.1f} {'N/A':<12}")
+
+    logger.info(f"Calculated growth rates for {len(year_data)} years")
+    return "\n".join(results)
