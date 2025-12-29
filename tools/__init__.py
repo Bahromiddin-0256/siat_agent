@@ -13,6 +13,12 @@ from .rag_tool import (
     rebuild_vectorstore,
     get_vectorstore,
 )
+from .metadata_rag_tool import (
+    search_sdmx_metadata,
+    initialize_metadata_vectorstore,
+    rebuild_metadata_vectorstore,
+    get_metadata_vectorstore,
+)
 from .sdmx_data_retrieval_tool import (
     get_sdmx_value,
     get_sdmx_metadata,
@@ -39,6 +45,10 @@ __all__ = [
     "initialize_rag_vectorstore",
     "rebuild_vectorstore",
     "get_vectorstore",
+    "search_sdmx_metadata",
+    "initialize_metadata_vectorstore",
+    "rebuild_metadata_vectorstore",
+    "get_metadata_vectorstore",
     "get_sdmx_value",
     "get_sdmx_metadata",
     "calculate_yearly_growth",

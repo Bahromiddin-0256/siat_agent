@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # Common paths
     chroma_persist_dir: Path = BASE_DIR / "chroma_db"
+    metadata_chroma_persist_dir: Path = BASE_DIR / "metadata_chroma_db"
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

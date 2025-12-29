@@ -20,6 +20,7 @@ from tools import (
     list_sdmx_categories,
     search_sdmx_semantic,
     search_sdmx_with_score,
+    search_sdmx_metadata,
     get_sdmx_value,
     get_sdmx_metadata,
     calculate_yearly_growth,
@@ -57,6 +58,7 @@ def create_sdmx_agent(
         # Search and discovery tools
         search_sdmx_semantic,  # RAG-based semantic search (primary)
         search_sdmx_with_score,  # RAG search with relevance scores
+        search_sdmx_metadata,  # Metadata search (methodologies, classifiers, legal refs)
         get_sdmx_id,  # Keyword-based search (fallback)
         get_sdmx_by_code,  # Get by specific code
         list_sdmx_categories,  # Browse categories
@@ -104,31 +106,35 @@ Available tools:
 1. **search_sdmx_semantic**: Use this FIRST for finding indicators. It uses AI embeddings
    to find semantically similar indicators, even if exact keywords don't match.
 2. **search_sdmx_with_score**: Like semantic search but shows relevance scores.
-3. **get_sdmx_id**: Keyword-based search. Use as fallback if semantic search doesn't work well.
-4. **get_sdmx_by_code**: Use when the user provides a specific SDMX code.
-5. **list_sdmx_categories**: Use to browse available statistical domains.
-6. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
+3. **search_sdmx_metadata**: Search by calculation methodologies, legal frameworks,
+   classification systems (SOATO, OKVED, etc.), or methodological documentation.
+   Use when user asks about methodology, legal basis, classifiers, or technical details.
+   Returns only SDMX IDs as comma-separated list.
+4. **get_sdmx_id**: Keyword-based search. Use as fallback if semantic search doesn't work well.
+5. **get_sdmx_by_code**: Use when the user provides a specific SDMX code.
+6. **list_sdmx_categories**: Use to browse available statistical domains.
+7. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
    Required when user asks "how many", "what is the value", specific numbers, etc.
-7. **get_sdmx_metadata**: Get minimal metadata about an indicator (unit, period, department).
-8. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
+8. **get_sdmx_metadata**: Get minimal metadata about an indicator (unit, period, department).
+9. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
    Required when user asks for "o'sish foizi", "growth rate", "percentage change", "trend" over time.
 
 STATISTICAL ANALYSIS TOOLS:
-9. **calculate_statistics**: Calculate descriptive statistics (mean, median, min, max, std dev, total) over a time period.
+10. **calculate_statistics**: Calculate descriptive statistics (mean, median, min, max, std dev, total) over a time period.
    Keywords: "o'rtacha", "average", "minimal", "maksimal", "statistika"
-10. **calculate_cagr**: Calculate Compound Annual Growth Rate between two years.
+11. **calculate_cagr**: Calculate Compound Annual Growth Rate between two years.
    Keywords: "CAGR", "yillik o'rtacha o'sish", "compound growth"
-11. **compare_regions**: Compare multiple regions for a specific year with ranking and percentages.
+12. **compare_regions**: Compare multiple regions for a specific year with ranking and percentages.
    Keywords: "solishtirish", "compare", "viloyatlar", "regions"
-12. **rank_regions**: Rank all regions by indicator value for a specific year.
+13. **rank_regions**: Rank all regions by indicator value for a specific year.
    Keywords: "reyting", "ranking", "eng yuqori", "eng past", "top"
-13. **calculate_percentage_share**: Calculate each region's percentage share of total.
+14. **calculate_percentage_share**: Calculate each region's percentage share of total.
    Keywords: "ulush", "foiz", "percentage share", "distribution", "taqsimot"
-14. **compare_years**: Compare two specific years with absolute and percentage change.
+15. **compare_years**: Compare two specific years with absolute and percentage change.
    Keywords: "solishtir", "compare years", "farq", "o'zgarish"
-15. **calculate_period_total**: Calculate total sum across a time period.
+16. **calculate_period_total**: Calculate total sum across a time period.
    Keywords: "jami", "umumiy", "total", "sum"
-16. **calculate_moving_average**: Calculate moving average for smoothed trends.
+17. **calculate_moving_average**: Calculate moving average for smoothed trends.
    Keywords: "trend", "silliq o'sish", "smoothed", "harakatlanuvchi o'rtacha"
 
 Best practices and tool selection guide:
@@ -222,6 +228,18 @@ User: "Asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 2023"
    ---
    Foydalanilgan ko'rsatkichlar:
    - SDMX ID 1326: Asosiy kapitalga o'zlashtirilgan investitsiyalar"
+
+Workflow 5 (Methodology/classifier search):
+User: "Qaysi ko'rsatkichlar SOATO klassifikatori ishlatadi?" or
+      "Which indicators use live birth methodology?"
+1. search_sdmx_metadata("SOATO classifier") → returns "SDMX IDs: 225, 226, 227"
+2. Optionally get_sdmx_metadata() for details on each ID
+3. Answer: Present the list of relevant indicators found through metadata search
+
+   ---
+   Foydalanilgan ko'rsatkichlar:
+   - SDMX ID 225: Tug'ilganlar soni (o'g'il bolalar)
+   - SDMX ID 226: ...
 
 Important:
 - Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)

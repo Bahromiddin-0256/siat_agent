@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from core.agent import create_sdmx_agent, run_agent_async
 from core.settings import settings
 from core.logger import setup_logger
-from tools import initialize_sdmx_data, initialize_rag_vectorstore
+from tools import initialize_sdmx_data, initialize_rag_vectorstore, initialize_metadata_vectorstore
 from tools import sdmx_tool
 
 logger = setup_logger(__name__)
@@ -76,6 +76,11 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing RAG vector store with embeddings...")
         initialize_rag_vectorstore(sdmx_tool._json_data)
         logger.info("RAG vector store initialized successfully!")
+
+        # Initialize metadata RAG vector store
+        logger.info("Initializing metadata RAG vector store...")
+        initialize_metadata_vectorstore()
+        logger.info("Metadata RAG vector store initialized successfully!")
 
         # Create the agent
         logger.info("Creating SDMX agent...")
