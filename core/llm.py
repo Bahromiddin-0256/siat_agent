@@ -59,7 +59,13 @@ def _supports_param(cls, param: str) -> bool:
 
     try:
         sig = inspect.signature(cls.__init__)
-        return param in sig.parameters
+        if param in sig.parameters:
+            return True
+        # If **kwargs is accepted, allow the param.
+        for p in sig.parameters.values():
+            if p.kind == inspect.Parameter.VAR_KEYWORD:
+                return True
+        return False
     except Exception:
         return False
 
@@ -92,6 +98,16 @@ elif settings.llm_provider == "open_router":
     if _supports_param(ChatOpenAI, "streaming"):
         openai_kwargs["streaming"] = False
     _base_llm = ChatOpenAI(**openai_kwargs)
+elif settings.llm_provider == "deepinfra":
+    deepinfra_kwargs = {
+        "base_url": settings.deepinfra_base_url,
+        "api_key": settings.deepinfra_api_key,
+        "model": settings.deepinfra_model,
+        "temperature": 0.7,
+    }
+    if _supports_param(ChatOpenAI, "streaming"):
+        deepinfra_kwargs["streaming"] = False
+    _base_llm = ChatOpenAI(**deepinfra_kwargs)
 else:
     raise ValueError(f"Unsupported LLM_PROVIDER: {settings.llm_provider}")
 

@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     groq_api_key: str
     open_router_api_key: str
     open_router_base_url: str
+    deepinfra_api_key: str = ""
+    deepinfra_base_url: str = "https://api.deepinfra.com/v1/openai"
+    deepinfra_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
     # Common paths
     chroma_persist_dir: Path = BASE_DIR / "chroma_db"

@@ -83,10 +83,18 @@ uv pip install -e .
 
 2. Edit `.env` to customize (optional):
    ```bash
+   # Provider selection
+   LLM_PROVIDER=ollama
+
    # Ollama Configuration
    OLLAMA_BASE_URL=http://localhost:11434
    OLLAMA_MODEL=llama3.2
    OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+
+   # DeepInfra Configuration (OpenAI-compatible)
+   DEEPINFRA_API_KEY=your_key_here
+   DEEPINFRA_BASE_URL=https://api.deepinfra.com/v1/openai
+   DEEPINFRA_MODEL=meta-llama/Meta-Llama-3.1-8B-Instruct
    ```
 
 ## Usage
