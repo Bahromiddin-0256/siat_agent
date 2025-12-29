@@ -14,8 +14,11 @@ from pydantic import BaseModel
 
 from core.agent import create_sdmx_agent, run_agent_async
 from core.settings import settings
+from core.logger import setup_logger
 from tools import initialize_sdmx_data, initialize_rag_vectorstore
 from tools import sdmx_tool
+
+logger = setup_logger(__name__)
 
 # Load environment variables
 
@@ -60,27 +63,33 @@ async def lifespan(app: FastAPI):
     """Initialize the agent on startup."""
     global agent, system_prompt
 
-    # Initialize SDMX data and RAG vector store
-    json_path = Path(__file__).parent / "jsons" / "main.json"
-    print(f"Loading SDMX data from: {json_path}")
+    try:
+        # Initialize SDMX data and RAG vector store
+        json_path = Path(__file__).parent / "jsons" / "main.json"
+        logger.info(f"Loading SDMX data from: {json_path}")
 
-    # Initialize keyword-based search
-    initialize_sdmx_data(json_path)
-    print("SDMX data loaded successfully!")
+        # Initialize keyword-based search
+        initialize_sdmx_data(json_path)
+        logger.info("SDMX data loaded successfully!")
 
-    # Initialize RAG vector store
-    print("Initializing RAG vector store with embeddings...")
-    initialize_rag_vectorstore(sdmx_tool._json_data)
-    print("RAG vector store initialized successfully!")
+        # Initialize RAG vector store
+        logger.info("Initializing RAG vector store with embeddings...")
+        initialize_rag_vectorstore(sdmx_tool._json_data)
+        logger.info("RAG vector store initialized successfully!")
 
-    # Create the agent
-    print("Creating SDMX agent...")
-    agent, system_prompt = create_sdmx_agent()
+        # Create the agent
+        logger.info("Creating SDMX agent...")
+        agent, system_prompt = create_sdmx_agent()
+        logger.info("Application startup complete!")
 
-    yield
+        yield
 
-    # Cleanup
-    print("Shutting down...")
+    except Exception as e:
+        logger.error(f"Error during startup: {e}", exc_info=True)
+        raise
+    finally:
+        # Cleanup
+        logger.info("Shutting down application...")
 
 
 app = FastAPI(
@@ -223,20 +232,26 @@ async def chat(message: ChatMessage):
     global agent, system_prompt
 
     if not message.message.strip():
+        logger.warning("Empty message received")
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    logger.info(f"Received chat message: {message.message[:100]}...")
 
     try:
         if agent is None:
             # Fallback to semantic search if agent is not available
+            logger.warning("Agent not available, using fallback semantic search")
             from tools import search_sdmx_semantic
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
         # Use the agent with system prompt
         response = await run_agent_async(agent, message.message, system_prompt)
+        logger.info("Chat response generated successfully")
         return ChatResponse(response=response)
 
     except Exception as e:
+        logger.error(f"Error processing chat message: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
 
@@ -248,6 +263,7 @@ async def websocket_endpoint(websocket: WebSocket):
     Connects to the agent and streams responses token by token.
     """
     await manager.connect(websocket)
+    logger.info("WebSocket client connected")
 
     try:
         while True:
@@ -257,11 +273,14 @@ async def websocket_endpoint(websocket: WebSocket):
             if not data.strip():
                 continue
 
+            logger.info(f"Received WebSocket message: {data[:100]}...")
+
             try:
                 global agent, system_prompt
 
                 if agent is None:
                     # Fallback to semantic search
+                    logger.warning("Agent not available, using fallback semantic search")
                     from tools import search_sdmx_semantic
                     result = search_sdmx_semantic.invoke({"question": data})
                     await manager.send_message(result, websocket)
@@ -269,11 +288,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Use the agent with system prompt
                     response = await run_agent_async(agent, data, system_prompt)
                     await manager.send_message(response, websocket)
+                    logger.info("WebSocket response sent successfully")
 
             except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}", exc_info=True)
                 await manager.send_message(f"Error: {str(e)}", websocket)
 
     except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected")
         manager.disconnect(websocket)
 
 

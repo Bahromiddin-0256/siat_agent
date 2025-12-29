@@ -11,6 +11,9 @@ from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
 
 from .llm import base_llm, _sanitize_tool_call_args
+from .logger import setup_logger
+
+logger = setup_logger(__name__)
 from tools import (
     get_sdmx_id,
     get_sdmx_by_code,
@@ -101,7 +104,9 @@ Important: Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlr
 """
 
     # Create the ReAct agent
+    logger.info("Creating SDMX ReAct agent with tools")
     agent = create_agent(base_llm, tools)
+    logger.info(f"SDMX agent created successfully with {len(tools)} tools")
 
     return agent, system_prompt
 
@@ -118,6 +123,7 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
     Returns:
         Agent's response
     """
+    logger.info(f"Running agent async with question: {question[:100]}...")
     config = {"configurable": {"thread_id": "1"}}
 
     # Build messages with system prompt
@@ -130,6 +136,7 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         {"messages": messages},
         config=config,
     )
+    logger.debug("Agent invocation completed")
 
     # Sanitize any odd tool_call payloads before we parse messages.
     if isinstance(result, dict) and "messages" in result:
@@ -137,7 +144,8 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         for m in result["messages"]:
             try:
                 sanitized.append(_sanitize_tool_call_args(m))
-            except Exception:
+            except (AttributeError, TypeError, ValueError) as e:
+                logger.warning(f"Failed to sanitize tool call args for message: {e}")
                 sanitized.append(m)
         result["messages"] = sanitized
 
@@ -174,6 +182,7 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
     Returns:
         Agent's response
     """
+    logger.info(f"Running agent sync with question: {question[:100]}...")
     config = {"configurable": {"thread_id": "1"}}
 
     # Build messages with system prompt
@@ -186,6 +195,7 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         {"messages": messages},
         config=config,
     )
+    logger.debug("Agent invocation completed")
 
     # Sanitize any odd tool_call payloads before we parse messages.
     if isinstance(result, dict) and "messages" in result:
@@ -193,7 +203,8 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         for m in result["messages"]:
             try:
                 sanitized.append(_sanitize_tool_call_args(m))
-            except Exception:
+            except (AttributeError, TypeError, ValueError) as e:
+                logger.warning(f"Failed to sanitize tool call args for message: {e}")
                 sanitized.append(m)
         result["messages"] = sanitized
 

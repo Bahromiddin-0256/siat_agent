@@ -5,6 +5,9 @@ from langchain_ollama import ChatOllama
 from langchain_core.runnables import RunnableLambda
 
 from .settings import settings
+from .logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def _sanitize_tool_call_args(message):
@@ -37,15 +40,16 @@ def _sanitize_tool_call_args(message):
                 try:
                     tc.args = {"items": args}
                     changed = True
-                except Exception:
-                    pass
+                except (AttributeError, TypeError) as e:
+                    logger.debug(f"Unable to set args on ToolCall object: {e}")
             new_tool_calls.append(tc)
 
     if changed:
         try:
             message.tool_calls = new_tool_calls
-        except Exception:
+        except (AttributeError, TypeError) as e:
             # If message is immutable, attach via additional_kwargs.
+            logger.debug(f"Message tool_calls immutable, using additional_kwargs: {e}")
             ak = getattr(message, "additional_kwargs", {}) or {}
             ak["tool_calls"] = new_tool_calls
             message.additional_kwargs = ak
@@ -66,11 +70,14 @@ def _supports_param(cls, param: str) -> bool:
             if p.kind == inspect.Parameter.VAR_KEYWORD:
                 return True
         return False
-    except Exception:
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Unable to inspect signature for {cls.__name__}: {e}")
         return False
 
 
 # Base model selection
+logger.info(f"Initializing LLM provider: {settings.llm_provider}")
+
 if settings.llm_provider == "groq":
     groq_kwargs = {
         "model": settings.groq_model,
@@ -80,6 +87,7 @@ if settings.llm_provider == "groq":
     if _supports_param(ChatGroq, "streaming"):
         groq_kwargs["streaming"] = False
     _base_llm = ChatGroq(**groq_kwargs)
+    logger.info(f"Groq LLM initialized with model: {settings.groq_model}")
 elif settings.llm_provider == "ollama":
     ollama_kwargs = {
         "model": settings.ollama_model,
@@ -88,6 +96,7 @@ elif settings.llm_provider == "ollama":
     if _supports_param(ChatOllama, "streaming"):
         ollama_kwargs["streaming"] = False
     _base_llm = ChatOllama(**ollama_kwargs)
+    logger.info(f"Ollama LLM initialized with model: {settings.ollama_model}")
 elif settings.llm_provider == "open_router":
     openai_kwargs = {
         "base_url": settings.open_router_base_url,
@@ -98,6 +107,7 @@ elif settings.llm_provider == "open_router":
     if _supports_param(ChatOpenAI, "streaming"):
         openai_kwargs["streaming"] = False
     _base_llm = ChatOpenAI(**openai_kwargs)
+    logger.info("OpenRouter LLM initialized with model: meta-llama/llama-3.3-70b-instruct:free")
 elif settings.llm_provider == "deepinfra":
     deepinfra_kwargs = {
         "base_url": settings.deepinfra_base_url,
@@ -108,8 +118,11 @@ elif settings.llm_provider == "deepinfra":
     if _supports_param(ChatOpenAI, "streaming"):
         deepinfra_kwargs["streaming"] = False
     _base_llm = ChatOpenAI(**deepinfra_kwargs)
+    logger.info(f"DeepInfra LLM initialized with model: {settings.deepinfra_model}")
 else:
-    raise ValueError(f"Unsupported LLM_PROVIDER: {settings.llm_provider}")
+    error_msg = f"Unsupported LLM_PROVIDER: {settings.llm_provider}"
+    logger.error(error_msg)
+    raise ValueError(error_msg)
 
 # Export a chat model for agent tool-binding.
 base_llm = _base_llm

@@ -15,6 +15,9 @@ from langchain_chroma.vectorstores import Chroma
 from langchain_core.vectorstores import VectorStore
 
 from core.settings import settings
+from core.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 # Global variable to store vector store
 _vector_store: VectorStore | None = None
@@ -38,11 +41,15 @@ def initialize_rag_vectorstore(
     """
     global _vector_store
 
+    logger.info("Initializing RAG vector store")
+
     if persist_directory is None:
         persist_directory = str(settings.chroma_persist_dir)
 
     if embedding_model is None:
         embedding_model = settings.ollama_embedding_model
+
+    logger.info(f"Using embedding model: {embedding_model}")
 
     # Create embeddings
     embeddings = OllamaEmbeddings(
@@ -127,16 +134,18 @@ def initialize_rag_vectorstore(
 
     # Check if vector store already exists - load it instead of recreating
     if persist_path.exists() and (persist_path / "chroma.sqlite3").exists():
-        print("Loading existing vector store from disk (fast)...")
+        logger.info("Loading existing vector store from disk")
         _vector_store = Chroma(
             persist_directory=str(persist_path),
             embedding_function=embeddings,
         )
+        logger.info(f"Vector store loaded successfully")
         return _vector_store
 
     # Extract all documents only if we need to create a new vector store
-    print("Creating new vector store (this may take a while)...")
+    logger.info("Creating new vector store (this may take a while)...")
     extract_documents(json_data)
+    logger.info(f"Extracted {len(documents)} documents from SDMX data")
 
     # Generate unique IDs for each document to prevent duplicates
     ids = [f"sdmx_{doc.metadata.get('id', doc.metadata.get('code', i))}"
@@ -149,6 +158,7 @@ def initialize_rag_vectorstore(
         persist_directory=str(persist_path),
         ids=ids,
     )
+    logger.info("Vector store created and persisted successfully")
 
     return _vector_store
 
@@ -177,10 +187,11 @@ def rebuild_vectorstore(
 
     # Remove existing vector store
     if persist_path.exists():
-        print(f"Removing existing vector store at {persist_path}...")
+        logger.info(f"Removing existing vector store at {persist_path}")
         shutil.rmtree(persist_path)
 
     # Reinitialize
+    logger.info("Reinitializing vector store with new data")
     return initialize_rag_vectorstore(json_data, persist_directory, embedding_model)
 
 
@@ -208,7 +219,8 @@ try:
             description="Minimum similarity score (0-1). May be a float or a numeric string.",
         )
 
-except Exception:  # pragma: no cover
+except (ImportError, AttributeError) as e:  # pragma: no cover
+    logger.warning(f"Failed to create Pydantic argument schemas: {e}")
     _SemanticSearchArgs = None
     _SearchWithScoreArgs = None
 
@@ -236,7 +248,8 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     try:
         if isinstance(k, str):
             k = int(k)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Invalid k parameter '{k}', defaulting to 10: {e}")
         k = 10
 
     # Bound k to safe limits
@@ -282,13 +295,15 @@ def search_sdmx_with_score(question: str, k: int = 10, score_threshold: float = 
     try:
         if isinstance(k, str):
             k = int(k)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Invalid k parameter '{k}', defaulting to 10: {e}")
         k = 10
 
     try:
         if isinstance(score_threshold, str):
             score_threshold = float(score_threshold)
-    except Exception:
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Invalid score_threshold '{score_threshold}', defaulting to 0.7: {e}")
         score_threshold = 0.7
 
     if k <= 0:

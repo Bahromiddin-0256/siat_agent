@@ -4,3 +4,4 @@ chroma_db/
 .env/
 /jsons/sdmxs/
 .env
+logs/
