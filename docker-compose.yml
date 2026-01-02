@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dental_clinic_db
+    environment:
+      POSTGRES_USER: dental_user
+      POSTGRES_PASSWORD: dental_password
+      POSTGRES_DB: dental_clinic
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dental_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    container_name: dental_clinic_bot
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dental_user:dental_password@postgres:5432/dental_clinic
+      BOT_TOKEN: ${BOT_TOKEN}
+      ADMIN_IDS: ${ADMIN_IDS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: python -m app.main
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
