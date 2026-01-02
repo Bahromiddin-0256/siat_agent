@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.bot.bot import dp, bot
 from app.database.connection import init_db
-from app.bot.handlers import patient
+from app.bot.handlers import patient, doctor, admin
+from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
@@ -22,7 +23,13 @@ async def lifespan(app: FastAPI):
     
     # Include bot routers
     dp.include_router(patient.router)
+    dp.include_router(doctor.router)
+    dp.include_router(admin.router)
     print("✅ Bot handlers registered")
+    
+    # Start scheduler
+    start_scheduler()
+    print("✅ Scheduler started")
     
     # Start bot polling in background
     asyncio.create_task(dp.start_polling(bot))
@@ -32,6 +39,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     print("🛑 Shutting down...")
+    stop_scheduler()
     await bot.session.close()
 
 
