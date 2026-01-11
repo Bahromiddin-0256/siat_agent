@@ -102,26 +102,35 @@ def extract_value_from_data(
 
 
 @tool
-def get_sdmx_value(sdmx_id: int, year: str, region: Optional[str] = None) -> str:
+def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[str] = None) -> str:
     """
-    Extract specific statistical value from SDMX data file with unit.
+    Extract statistical value(s) from SDMX data file with unit.
 
     Use this tool when you need to get actual statistical numbers from a known SDMX ID.
-    This tool reads local data files and extracts the exact value for a given year and region,
-    along with the correct unit of measurement from metadata.
+    This tool reads local data files and extracts values based on the parameters provided.
 
     Args:
         sdmx_id: The SDMX identifier (e.g., 223 for birth statistics)
-        year: Year as string (e.g., "2013", "2020")
+        year: Optional year as string (e.g., "2013", "2020")
+              - If None: returns all years for the specified region (or first region if region also None)
         region: Optional region name in any language (e.g., "Andijon", "Андижан", "Andijan")
-                If not specified, returns total/national level data
+                - If None: returns all regions for the specified year (or first row if year also None)
 
     Returns:
-        A minimal string with the extracted value, unit, and context
+        A formatted string with the extracted value(s), unit, and context
 
-    Example:
+    Examples:
         get_sdmx_value(sdmx_id=223, year="2013", region="Andijon")
         Returns: "Andijon viloyati 2013-yilda 64239.0 kishi"
+
+        get_sdmx_value(sdmx_id=223, year="2013", region=None)
+        Returns: All regions for 2013
+
+        get_sdmx_value(sdmx_id=223, year=None, region="Andijon")
+        Returns: Andijon data for all available years
+
+        get_sdmx_value(sdmx_id=223, year=None, region=None)
+        Returns: First row with all years
     """
     # Load the data file
     data = load_sdmx_data_file(sdmx_id)
@@ -136,6 +145,9 @@ def get_sdmx_value(sdmx_id: int, year: str, region: Optional[str] = None) -> str
     else:
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
+    if not data_section:
+        return f"Error: No data found in SDMX file {sdmx_id}"
+
     # Extract unit from metadata
     unit = "kishi"  # default
     for item in metadata:
@@ -144,21 +156,84 @@ def get_sdmx_value(sdmx_id: int, year: str, region: Optional[str] = None) -> str
             unit = item.get('value_uz', 'kishi')
             break
 
-    # Extract the specific value
+    # Get all year columns
+    all_years = []
+    if data_section and len(data_section) > 0:
+        first_row = data_section[0]
+        all_years = sorted([k for k in first_row.keys() if k.isdigit()])
+
+    # Case 1: Both year and region are None - return first row with all years
+    if year is None and region is None:
+        first_row = data_section[0]
+        region_name = first_row.get('Klassifikator') or first_row.get('Klassifikator_ru') or first_row.get('Klassifikator_en') or "Ma'lum emas"
+
+        result_lines = [f"SDMX ID {sdmx_id}: {region_name}"]
+        result_lines.append(f"O'lchov: {unit}")
+        result_lines.append("")
+
+        for yr in all_years:
+            value = first_row.get(yr, 'N/A')
+            result_lines.append(f"{yr}: {value} {unit}")
+
+        return "\n".join(result_lines)
+
+    # Case 2: year is None, but region is specified - return all years for that region
+    if year is None and region is not None:
+        # Find the matching region row
+        matching_row = None
+        region_lower = region.lower()
+
+        for row in data_section:
+            klassifikator = str(row.get('Klassifikator', '')).lower()
+            klassifikator_ru = str(row.get('Klassifikator_ru', '')).lower()
+            klassifikator_en = str(row.get('Klassifikator_en', '')).lower()
+            klassifikator_uzc = str(row.get('Klassifikator_uzc', '')).lower()
+
+            if (region_lower in klassifikator or
+                region_lower in klassifikator_ru or
+                region_lower in klassifikator_en or
+                region_lower in klassifikator_uzc):
+                matching_row = row
+                break
+
+        if not matching_row:
+            return f"Mintaqa topilmadi: '{region}' uchun SDMX ID {sdmx_id}"
+
+        region_name = matching_row.get('Klassifikator') or matching_row.get('Klassifikator_ru') or matching_row.get('Klassifikator_en') or region
+
+        result_lines = [f"SDMX ID {sdmx_id}: {region_name}"]
+        result_lines.append(f"O'lchov: {unit}")
+        result_lines.append("")
+
+        for yr in all_years:
+            value = matching_row.get(yr, 'N/A')
+            result_lines.append(f"{yr}: {value} {unit}")
+
+        return "\n".join(result_lines)
+
+    # Case 3: region is None, but year is specified - return all regions for that year
+    if year is not None and region is None:
+        if year not in all_years:
+            years_str = ', '.join(all_years) if all_years else "noma'lum"
+            return f"Yil topilmadi: '{year}'. Mavjud yillar: {years_str}"
+
+        result_lines = [f"SDMX ID {sdmx_id}: {year}-yil"]
+        result_lines.append(f"O'lchov: {unit}")
+        result_lines.append("")
+
+        for row in data_section:
+            region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or row.get('Klassifikator_en') or "Ma'lum emas"
+            value = row.get(year, 'N/A')
+            result_lines.append(f"{region_name}: {value} {unit}")
+
+        return "\n".join(result_lines)
+
+    # Case 4: Both year and region are specified - return single value (original behavior)
     result = extract_value_from_data(data_section, year, region=region)
 
     if result is None:
-        available_years = []
-        if data_section and len(data_section) > 0:
-            first_row = data_section[0]
-            available_years = [k for k in first_row.keys() if k.isdigit()]
-
-        years_str = ', '.join(sorted(available_years)) if available_years else "noma'lum"
-
-        if region:
-            return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, yil '{year}', mintaqa '{region}'. Mavjud yillar: {years_str}"
-        else:
-            return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, yil '{year}'. Mavjud yillar: {years_str}"
+        years_str = ', '.join(all_years) if all_years else "noma'lum"
+        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, yil '{year}', mintaqa '{region}'. Mavjud yillar: {years_str}"
 
     # Format minimal response with unit
     region_name = result['region_uz'] or result['region_ru'] or result['region_en'] or "Ma'lum emas"

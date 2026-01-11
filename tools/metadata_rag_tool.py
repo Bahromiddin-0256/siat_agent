@@ -195,7 +195,6 @@ def initialize_metadata_vectorstore(
     global _metadata_vector_store
 
     logger.info("Initializing metadata RAG vector store")
-
     if persist_directory is None:
         persist_directory = str(BASE_DIR / "metadata_chroma_db")
 

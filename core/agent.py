@@ -158,6 +158,13 @@ def create_sdmx_agent(
 You have access to a database of statistical indicators from Uzbekistan's statistics agency.
 The data includes economic statistics, social statistics, demographic data, and more.
 
+CRITICAL INSTRUCTION - ALWAYS RESPOND AFTER TOOL USE:
+After calling ANY tool and receiving results, you MUST:
+1. Analyze the tool's output carefully
+2. Provide a clear, natural language response to the user
+3. NEVER just call a tool without explaining the results to the user
+4. Format the data in a readable way for the user
+
 PRECISION AND VALIDATION RULES:
 1. **Always verify indicator selection**: Before extracting data, confirm the SDMX ID matches user intent
 2. **Handle ambiguity explicitly**:
@@ -188,7 +195,12 @@ Available tools:
 8. **count_reports_by_id**: Count reports by specific SDMX node ID.
    Example: count_reports_by_id(1916)
 9. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
-   Required when user asks "how many", "what is the value", specific numbers, etc.
+   Flexible usage:
+   - get_sdmx_value(sdmx_id, year, region) → single value
+   - get_sdmx_value(sdmx_id, year) → all regions for that year
+   - get_sdmx_value(sdmx_id, region=region) → all years for that region
+   - get_sdmx_value(sdmx_id) → first row with all years
+   Required when user asks "how many", "what is the value", specific numbers, trends over time, etc.
 10. **get_sdmx_metadata**: Get metadata about an indicator (name, unit, period, department).
    Use when user asks "SDMX ID X nima haqida" / "what is SDMX ID X about".
    Example: "SDMX ID 224 nima haqida" → get_sdmx_metadata(224)
@@ -635,6 +647,16 @@ def extract_final_response(messages: list[BaseMessage], tools_map: dict = None) 
         msg_type = type(msg).__name__
         has_content = hasattr(msg, 'content') and msg.content
         logger.warning(f"  {i}: {msg_type} (has_content={has_content})")
+
+    # FALLBACK: If there's a ToolMessage with content, return it directly
+    logger.warning("Attempting fallback: searching for ToolMessage content...")
+    for message in reversed(messages):
+        if isinstance(message, ToolMessage) and message.content:
+            tool_content = str(message.content).strip()
+            if tool_content:
+                logger.warning(f"FALLBACK: Using ToolMessage content ({len(tool_content)} chars)")
+                logger.info(f"  Preview: {tool_content[:200]}...")
+                return tool_content
 
     return "No response generated."
 
