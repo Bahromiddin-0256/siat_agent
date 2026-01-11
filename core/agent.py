@@ -33,6 +33,8 @@ from tools import (
     compare_years,
     calculate_period_total,
     calculate_moving_average,
+    count_reports_for_category,
+    count_reports_by_id,
 )
 
 

@@ -34,6 +34,10 @@ from .sdmx_statistics_tool import (
     calculate_period_total,
     calculate_moving_average,
 )
+from .sdmx_count_tool import (
+    count_reports_for_category,
+    count_reports_by_id,
+)
 
 __all__ = [
     "get_sdmx_id",
@@ -60,5 +64,7 @@ __all__ = [
     "compare_years",
     "calculate_period_total",
     "calculate_moving_average",
+    "count_reports_for_category",
+    "count_reports_by_id",
 ]
 
