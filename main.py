@@ -83,7 +83,7 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize the agent on startup."""
-    global agent, system_prompt
+    global agent, system_prompt, tools_map
 
     try:
         # Initialize SDMX data and RAG vector store
@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
 
         # Create the agent
         logger.info("Creating SDMX agent...")
-        agent, system_prompt = create_sdmx_agent()
+        agent, system_prompt, tools_map = create_sdmx_agent()
         logger.info("Application startup complete!")
 
         yield
@@ -313,7 +313,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                 else:
                     # Stream tool steps and final response
-                    async for message in run_agent_async_stream(agent, data, system_prompt):
+                    async for message in run_agent_async_stream(agent, data, system_prompt, tools_map):
                         try:
                             # Serialize with Unicode support and fallback
                             json_message = json.dumps(

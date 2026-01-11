@@ -6,6 +6,8 @@ based on user questions using LangGraph's prebuilt agent with Ollama.
 """
 from typing import Annotated, Any, TypedDict
 from datetime import datetime
+import re
+import json
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain.agents import create_agent
@@ -43,15 +45,77 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 
+def parse_xml_function_call(content: str) -> tuple[str | None, dict | None]:
+    """
+    Parse XML-style function calls from model output.
+
+    Example: <function=search_sdmx_metadata{"question": "..."}></function>
+
+    Returns:
+        Tuple of (function_name, arguments) or (None, None) if not found
+    """
+    # Pattern to match: <function=NAME{JSON}></function>
+    pattern = r'<function=(\w+)(\{.*?\})></function>'
+    match = re.search(pattern, content, re.DOTALL)
+
+    if match:
+        function_name = match.group(1)
+        json_str = match.group(2)
+
+        try:
+            arguments = json.loads(json_str)
+            logger.info(f"Detected XML function call: {function_name}")
+            logger.debug(f"  Args: {arguments}")
+            return function_name, arguments
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON arguments: {e}")
+            logger.warning(f"  Raw: {json_str}")
+            return None, None
+
+    return None, None
+
+
+def execute_tool_from_xml(content: str, tools_map: dict) -> str | None:
+    """
+    Extract and execute tool from XML-style function call.
+
+    Args:
+        content: Message content containing XML function call
+        tools_map: Dictionary mapping tool names to tool functions
+
+    Returns:
+        Tool execution result or None if tool not found/failed
+    """
+    function_name, arguments = parse_xml_function_call(content)
+
+    if not function_name:
+        return None
+
+    # Find the tool
+    tool = tools_map.get(function_name)
+    if not tool:
+        logger.warning(f"Tool '{function_name}' not found in tools_map")
+        return None
+
+    try:
+        logger.info(f"Executing tool fallback: {function_name}")
+        result = tool.run(arguments) if arguments else tool.run()
+        logger.info(f"Tool execution successful: {len(str(result))} chars")
+        return result
+    except Exception as e:
+        logger.error(f"Tool execution failed: {e}", exc_info=True)
+        return f"Error executing tool: {str(e)}"
+
+
 def create_sdmx_agent(
-) -> tuple[Any, str]:
+) -> tuple[Any, str, dict]:
     """
     Create an SDMX agent using LangGraph's prebuilt ReAct agent with Ollama.
 
     Args:
 
     Returns:
-        A tuple of (compiled LangGraph agent, system prompt)
+        A tuple of (compiled LangGraph agent, system prompt, tools_map)
     """
     # Get configuration from environment or use defaults
 
@@ -65,6 +129,8 @@ def create_sdmx_agent(
         get_sdmx_id,  # Keyword-based search (fallback)
         get_sdmx_by_code,  # Get by specific code
         list_sdmx_categories,  # Browse categories
+        count_reports_for_category,  # Count reports under a category
+        count_reports_by_id,  # Count reports by node ID
 
         # Data extraction tools
         get_sdmx_value,  # Extract actual data values
@@ -116,12 +182,17 @@ Available tools:
 4. **get_sdmx_id**: Keyword-based search. Use as fallback if semantic search doesn't work well.
 5. **get_sdmx_by_code**: Use when the user provides a specific SDMX code.
 6. **list_sdmx_categories**: Use to browse available statistical domains.
-7. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
+7. **count_reports_for_category**: Count how many reports (indicators) exist under a category.
+   Use when user asks "nechta hisobot", "how many reports", "сколько отчетов".
+   Example: "30 yillik iqtisodiy makro-ko'rsatkichlar nechta hisobot bor" → count_reports_for_category("30 yillik iqtisodiy makro-ko'rsatkichlar")
+8. **count_reports_by_id**: Count reports by specific SDMX node ID.
+   Example: count_reports_by_id(1916)
+9. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
    Required when user asks "how many", "what is the value", specific numbers, etc.
-8. **get_sdmx_metadata**: Get metadata about an indicator (name, unit, period, department).
+10. **get_sdmx_metadata**: Get metadata about an indicator (name, unit, period, department).
    Use when user asks "SDMX ID X nima haqida" / "what is SDMX ID X about".
    Example: "SDMX ID 224 nima haqida" → get_sdmx_metadata(224)
-9. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
+11. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
    Required when user asks for "o'sish foizi", "growth rate", "percentage change", "trend" over time.
 
 STATISTICAL ANALYSIS TOOLS:
@@ -146,6 +217,7 @@ Best practices and tool selection guide:
 
 TERMINOLOGY MAPPING (select appropriate tool based on keywords):
 - "SDMX ID X nima haqida" / "what is SDMX ID X about" → get_sdmx_metadata(X)
+- "nechta hisobot" / "how many reports" / "сколько отчетов" / "nechta ko'rsatkich" → count_reports_for_category
 - "o'rtacha" / "average" → calculate_statistics
 - "eng yuqori" / "eng past" → rank_regions
 - "solishtirish" / "compare" + regions → compare_regions
@@ -256,6 +328,11 @@ User: "SDMX ID 224 nima haqida?" or "What is SDMX ID 224 about?"
    Foydalanilgan ko'rsatkichlar:
    - SDMX ID 224: Tug'ilganlar soni (qiz bolalar)
 
+Workflow 7 (Counting reports in a category):
+User: "30 yillik iqtisodiy makro-ko'rsatkichlar nechta hisobot bor?"
+1. count_reports_for_category("30 yillik iqtisodiy makro-ko'rsatkichlar") → returns count details
+2. Answer: Present the number of reports (15 ta) with category details and breakdown by subcategories
+
 Important:
 - Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)
 - Always include the reference list at the end of every response that uses SDMX data
@@ -263,10 +340,24 @@ Important:
 
     # Create the ReAct agent
     logger.info("Creating SDMX ReAct agent with tools")
+    logger.info(f"Using LLM: {type(base_llm).__name__}")
+    logger.info(f"Registering {len(tools)} tools:")
+    for i, tool in enumerate(tools, 1):
+        tool_name = tool.name if hasattr(tool, 'name') else str(tool)
+        logger.info(f"  {i}. {tool_name}")
+
+    # Check if model supports tool calling
+    supports_tools = hasattr(base_llm, 'bind_tools')
+    logger.info(f"Model supports bind_tools: {supports_tools}")
+
     agent = create_agent(base_llm, tools)
     logger.info(f"SDMX agent created successfully with {len(tools)} tools")
 
-    return agent, system_prompt
+    # Create tools map for fallback XML function calling
+    tools_map = {tool.name: tool for tool in tools if hasattr(tool, 'name')}
+    logger.info(f"Created tools_map with {len(tools_map)} tools")
+
+    return agent, system_prompt, tools_map
 
 
 async def run_agent_async(agent, question: str, system_prompt: str = None) -> str:
@@ -294,7 +385,16 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         {"messages": messages},
         config=config,
     )
-    logger.debug("Agent invocation completed")
+    logger.info("Agent invocation completed")
+
+    # Log the result structure
+    if isinstance(result, dict) and "messages" in result:
+        logger.info(f"Received {len(result['messages'])} messages from agent")
+        for i, msg in enumerate(result["messages"]):
+            msg_type = type(msg).__name__
+            logger.debug(f"Message {i}: {msg_type}")
+    else:
+        logger.warning(f"Unexpected result type: {type(result)}")
 
     # Sanitize any odd tool_call payloads before we parse messages.
     if isinstance(result, dict) and "messages" in result:
@@ -308,29 +408,49 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         result["messages"] = sanitized
 
     # Get the last AI message with actual response content
+    logger.info("Scanning messages for final response...")
+    ai_message_count = 0
     for message in reversed(result["messages"]):
         if isinstance(message, AIMessage):
+            ai_message_count += 1
+            logger.debug(f"Found AIMessage #{ai_message_count}")
+
             # Skip messages that only contain tool calls without text content
             if hasattr(message, 'tool_calls') and message.tool_calls:
+                logger.debug(f"  Has {len(message.tool_calls)} tool calls")
                 if not message.content or not str(message.content).strip():
+                    logger.debug("  Skipping: has tool calls but no content")
                     continue
 
             # Return string content if it's meaningful
             if message.content:
                 content_str = str(message.content).strip()
+                logger.debug(f"  Content length: {len(content_str)} chars")
+                logger.debug(f"  Content preview: {content_str[:100]}...")
+
                 # Skip if it looks like a JSON tool call representation
                 if content_str.startswith('{') or content_str.startswith('['):
                     # Accept longer JSON responses (actual content, not tool calls)
                     if len(content_str) > 200:
+                        logger.info("Returning JSON-like content (>200 chars)")
                         return content_str
+                    logger.debug("  Skipping: short JSON-like content")
                     continue
+
                 # Skip XML-style function call outputs (e.g., <function=...>)
                 if '<function=' in content_str or '</function>' in content_str:
+                    logger.debug("  Skipping: XML-style function call")
                     continue
+
                 # Return meaningful text content
                 if content_str:
+                    logger.info(f"Returning text content ({len(content_str)} chars)")
                     return content_str
+            else:
+                logger.debug("  No content in this AIMessage")
 
+    logger.warning(f"No valid response found after scanning {ai_message_count} AIMessages")
+    logger.warning(f"Total messages in result: {len(result.get('messages', []))}")
     return "No response generated."
 
 
@@ -359,7 +479,16 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         {"messages": messages},
         config=config,
     )
-    logger.debug("Agent invocation completed")
+    logger.info("Agent invocation completed")
+
+    # Log the result structure
+    if isinstance(result, dict) and "messages" in result:
+        logger.info(f"Received {len(result['messages'])} messages from agent")
+        for i, msg in enumerate(result["messages"]):
+            msg_type = type(msg).__name__
+            logger.debug(f"Message {i}: {msg_type}")
+    else:
+        logger.warning(f"Unexpected result type: {type(result)}")
 
     # Sanitize any odd tool_call payloads before we parse messages.
     if isinstance(result, dict) and "messages" in result:
@@ -372,36 +501,54 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
                 sanitized.append(m)
         result["messages"] = sanitized
 
-    # ...existing code scanning for last AIMessage...
-
+    # Get the last AI message with actual response content
+    logger.info("Scanning messages for final response...")
+    ai_message_count = 0
     for message in reversed(result["messages"]):
         if isinstance(message, AIMessage):
+            ai_message_count += 1
+            logger.debug(f"Found AIMessage #{ai_message_count}")
+
             # Skip messages that only contain tool calls without text content
             if hasattr(message, 'tool_calls') and message.tool_calls:
+                logger.debug(f"  Has {len(message.tool_calls)} tool calls")
                 if not message.content or not str(message.content).strip():
+                    logger.debug("  Skipping: has tool calls but no content")
                     continue
 
             # Return string content if it's meaningful
             if message.content:
                 content_str = str(message.content).strip()
+                logger.debug(f"  Content length: {len(content_str)} chars")
+                logger.debug(f"  Content preview: {content_str[:100]}...")
+
                 # Skip if it looks like a JSON tool call representation
                 if content_str.startswith('{') or content_str.startswith('['):
                     # Accept longer JSON responses (actual content, not tool calls)
                     if len(content_str) > 200:
+                        logger.info("Returning JSON-like content (>200 chars)")
                         return content_str
+                    logger.debug("  Skipping: short JSON-like content")
                     continue
+
                 # Skip XML-style function call outputs (e.g., <function=...>)
                 if '<function=' in content_str or '</function>' in content_str:
+                    logger.debug("  Skipping: XML-style function call")
                     continue
+
                 # Return meaningful text content
                 if content_str:
+                    logger.info(f"Returning text content ({len(content_str)} chars)")
                     return content_str
+            else:
+                logger.debug("  No content in this AIMessage")
 
-    # Get the last AI message with actual response content
+    logger.warning(f"No valid response found after scanning {ai_message_count} AIMessages")
+    logger.warning(f"Total messages in result: {len(result.get('messages', []))}")
     return "No response generated."
 
 
-def extract_final_response(messages: list[BaseMessage]) -> str:
+def extract_final_response(messages: list[BaseMessage], tools_map: dict = None) -> str:
     """
     Extract the final response from the agent's message history.
 
@@ -411,34 +558,88 @@ def extract_final_response(messages: list[BaseMessage]) -> str:
     Returns:
         Final text response or "No response generated."
     """
+    logger.info(f"Extracting final response from {len(messages)} messages")
+
     # Get the last AI message with actual response content
+    ai_message_count = 0
+    skipped_reasons = []
+
     for message in reversed(messages):
         if isinstance(message, AIMessage):
+            ai_message_count += 1
+            logger.debug(f"Found AIMessage #{ai_message_count}")
+
             # Skip messages that only contain tool calls without text content
             if hasattr(message, 'tool_calls') and message.tool_calls:
+                logger.debug(f"  Has {len(message.tool_calls)} tool calls")
                 if not message.content or not str(message.content).strip():
+                    reason = f"AIMessage #{ai_message_count}: has {len(message.tool_calls)} tool calls but no content"
+                    skipped_reasons.append(reason)
+                    logger.info(f"  SKIP: {reason}")
                     continue
 
             # Return string content if it's meaningful
             if message.content:
                 content_str = str(message.content).strip()
+                logger.debug(f"  Content length: {len(content_str)} chars")
+                logger.debug(f"  Content preview: {content_str[:100]}...")
+
                 # Skip if it looks like a JSON tool call representation
                 if content_str.startswith('{') or content_str.startswith('['):
                     # Accept longer JSON responses (actual content, not tool calls)
                     if len(content_str) > 200:
+                        logger.info("Returning JSON-like content (>200 chars)")
                         return content_str
+                    reason = f"AIMessage #{ai_message_count}: short JSON-like content ({len(content_str)} chars): {content_str[:50]}..."
+                    skipped_reasons.append(reason)
+                    logger.info(f"  SKIP: {reason}")
                     continue
-                # Skip XML-style function call outputs (e.g., <function=...>)
-                if '<function=' in content_str or '</function>' in content_str:
+
+                # Handle XML-style function call outputs (e.g., <function=...>)
+                if '<function=' in content_str and '</function>' in content_str:
+                    logger.warning(f"Detected XML-style function call (model not using proper tool calling)")
+
+                    # Try to parse and execute the tool
+                    if tools_map:
+                        tool_result = execute_tool_from_xml(content_str, tools_map)
+                        if tool_result:
+                            logger.info(f"✓ Tool executed via XML fallback: {len(tool_result)} chars")
+                            logger.info(f"  Preview: {tool_result[:200]}...")
+                            return tool_result
+                        else:
+                            logger.warning("Failed to execute tool from XML")
+
+                    reason = f"AIMessage #{ai_message_count}: XML-style function call (and execution failed)"
+                    skipped_reasons.append(reason)
+                    logger.info(f"  SKIP: {reason}")
                     continue
+
                 # Return meaningful text content
                 if content_str:
+                    logger.info(f"✓ Returning text content ({len(content_str)} chars)")
+                    logger.info(f"  Preview: {content_str[:200]}...")
                     return content_str
+            else:
+                reason = f"AIMessage #{ai_message_count}: no content"
+                skipped_reasons.append(reason)
+                logger.info(f"  SKIP: {reason}")
+
+    logger.warning(f"No valid response found after scanning {ai_message_count} AIMessages")
+    logger.warning(f"All {len(skipped_reasons)} AIMessages were skipped:")
+    for reason in skipped_reasons:
+        logger.warning(f"  - {reason}")
+
+    # Dump all message types for debugging
+    logger.warning("Message types in order:")
+    for i, msg in enumerate(messages):
+        msg_type = type(msg).__name__
+        has_content = hasattr(msg, 'content') and msg.content
+        logger.warning(f"  {i}: {msg_type} (has_content={has_content})")
 
     return "No response generated."
 
 
-async def run_agent_async_stream(agent, question: str, system_prompt: str = None):
+async def run_agent_async_stream(agent, question: str, system_prompt: str = None, tools_map: dict = None):
     """
     Run agent and yield intermediate tool calls as they happen.
 
@@ -446,6 +647,7 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
         agent: The compiled agent
         question: User's question
         system_prompt: Optional system prompt
+        tools_map: Optional map of tool names to tool functions (for XML fallback)
 
     Yields:
         dict: Streaming messages with type, tool info, and results
@@ -462,7 +664,16 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
 
         # Invoke agent
         result = await agent.ainvoke({"messages": messages}, config=config)
-        logger.debug("Agent invocation completed")
+        logger.info("Agent invocation completed")
+
+        # Log the result structure
+        if isinstance(result, dict) and "messages" in result:
+            logger.info(f"Received {len(result['messages'])} messages from agent")
+            for i, msg in enumerate(result["messages"]):
+                msg_type = type(msg).__name__
+                logger.debug(f"Message {i}: {msg_type}")
+        else:
+            logger.warning(f"Unexpected result type: {type(result)}")
 
         # Sanitize tool calls
         if isinstance(result, dict) and "messages" in result:
@@ -476,14 +687,22 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
             result["messages"] = sanitized
 
         # Process messages sequentially and yield tool steps
+        logger.info("Processing messages and streaming tool calls...")
+        tool_call_count = 0
+        tool_result_count = 0
+
         for message in result["messages"]:
             if isinstance(message, AIMessage):
                 # Check for tool calls
                 if hasattr(message, 'tool_calls') and message.tool_calls:
                     for tool_call in message.tool_calls:
+                        tool_call_count += 1
                         # Get tool name and args
                         tool_name = tool_call.get("name") if isinstance(tool_call, dict) else getattr(tool_call, "name", None)
                         tool_args = tool_call.get("args") if isinstance(tool_call, dict) else getattr(tool_call, "args", None)
+
+                        logger.info(f"Tool call #{tool_call_count}: {tool_name}")
+                        logger.debug(f"  Args: {tool_args}")
 
                         yield {
                             "type": "tool_start",
@@ -493,6 +712,7 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
                         }
 
             elif isinstance(message, ToolMessage):
+                tool_result_count += 1
                 # Ensure content is string and handle edge cases
                 tool_result = message.content
 
@@ -507,14 +727,19 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
                     logger.warning(f"Tool result truncated from {len(tool_result)} to {max_length} chars")
                     tool_result = tool_result[:max_length] + "\n... (truncated)"
 
+                logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
+                logger.debug(f"  Preview: {tool_result[:200]}...")
+
                 yield {
                     "type": "tool_result",
                     "tool_result": tool_result,
                     "timestamp": datetime.now().isoformat()
                 }
 
+        logger.info(f"Streamed {tool_call_count} tool calls and {tool_result_count} tool results")
+
         # Send final response
-        final_response = extract_final_response(result["messages"])
+        final_response = extract_final_response(result["messages"], tools_map)
         yield {
             "type": "response",
             "content": final_response,

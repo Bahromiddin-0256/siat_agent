@@ -64,7 +64,19 @@ def find_node_by_name(data: List[Dict[str, Any]], search_name: str) -> Optional[
     Returns:
         Found node or None
     """
-    search_lower = search_name.lower()
+    # Normalize apostrophes to handle different Unicode quotes
+    def normalize_text(text: str) -> str:
+        """Normalize quotes and apostrophes for better matching."""
+        # Convert all quote variations to standard apostrophe (U+0027)
+        result = text.lower()
+        result = result.replace("\u2018", "'")  # U+2018 left single quote
+        result = result.replace("\u2019", "'")  # U+2019 right single quote
+        result = result.replace("\u02BB", "'")  # U+02BB modifier letter turned comma
+        result = result.replace("\u201C", "'")  # U+201C left double quote
+        result = result.replace("\u201D", "'")  # U+201D right double quote
+        return result
+
+    search_normalized = normalize_text(search_name)
 
     # First, try direct match in top-level nodes
     for node in data:
@@ -77,7 +89,7 @@ def find_node_by_name(data: List[Dict[str, Any]], search_name: str) -> Optional[
         ]
 
         for name in node_names:
-            if name and search_lower in name.lower():
+            if name and search_normalized in normalize_text(name):
                 return node
 
     # If not found at top level, search recursively
@@ -92,14 +104,14 @@ def find_node_by_name(data: List[Dict[str, Any]], search_name: str) -> Optional[
             ]
 
             for name in node_names:
-                if name and search_lower in name.lower():
+                if name and search_normalized in normalize_text(name):
                     return node
 
             # Search in children
             if 'children' in node and node['children']:
-                result = search_recursive(node['children'])
-                if result:
-                    return result
+                found = search_recursive(node['children'])
+                if found:
+                    return found
 
         return None
 
@@ -167,8 +179,10 @@ def count_reports_for_category(category_name: str) -> str:
             child_leaf_count = count_leaf_nodes(child)
             result.append(f"  {i}. {child_name} ({child_leaf_count} hisobot)")
 
+    response_text = "\n".join(result)
     logger.info(f"Found {report_count} reports for category '{category_display_name}'")
-    return "\n".join(result)
+    logger.info(f"Returning response: {len(response_text)} chars")
+    return response_text
 
 
 @tool
@@ -230,5 +244,7 @@ def count_reports_by_id(node_id: int) -> str:
     result.append(f"Hisobotlar soni (leaf nodes): {report_count} ta")
     result.append(f"To'g'ridan-to'g'ri bolalar soni: {direct_children_count} ta")
 
+    response_text = "\n".join(result)
     logger.info(f"Found {report_count} reports for node ID {node_id}")
-    return "\n".join(result)
+    logger.info(f"Returning response: {len(response_text)} chars")
+    return response_text
