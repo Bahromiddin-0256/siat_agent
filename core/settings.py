@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     deepinfra_base_url: str = "https://api.deepinfra.com/v1/openai"
     deepinfra_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
-    # Common paths
-    chroma_persist_dir: Path = BASE_DIR / "chroma_db"
-    metadata_chroma_persist_dir: Path = BASE_DIR / "metadata_chroma_db"
+    # Vector store paths (ChromaDB)
+    chroma_persist_dir: Path = BASE_DIR / "vector" / "sdmx_rag"
+    metadata_chroma_persist_dir: Path = BASE_DIR / "vector" / "metadata_rag"
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

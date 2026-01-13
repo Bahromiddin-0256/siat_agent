@@ -1,8 +1,7 @@
 .venv/
 .idea/
-chroma_db/
+vector/
 .env/
 /jsons/sdmxs/
 .env
 logs/
-metadata_chroma_db/
