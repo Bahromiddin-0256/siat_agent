@@ -372,7 +372,7 @@ Important:
     return agent, system_prompt, tools_map
 
 
-async def run_agent_async(agent, question: str, system_prompt: str = None) -> str:
+async def run_agent_async(agent, question: str, system_prompt: str = None, tools_map: dict = None) -> str:
     """
     Run the agent asynchronously with a question.
 
@@ -380,6 +380,7 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
         agent: The compiled agent
         question: User's question
         system_prompt: Optional system prompt
+        tools_map: Optional map of tool names to tool functions (for XML fallback)
 
     Returns:
         Agent's response
@@ -419,54 +420,11 @@ async def run_agent_async(agent, question: str, system_prompt: str = None) -> st
                 sanitized.append(m)
         result["messages"] = sanitized
 
-    # Get the last AI message with actual response content
-    logger.info("Scanning messages for final response...")
-    ai_message_count = 0
-    for message in reversed(result["messages"]):
-        if isinstance(message, AIMessage):
-            ai_message_count += 1
-            logger.debug(f"Found AIMessage #{ai_message_count}")
-
-            # Skip messages that only contain tool calls without text content
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                logger.debug(f"  Has {len(message.tool_calls)} tool calls")
-                if not message.content or not str(message.content).strip():
-                    logger.debug("  Skipping: has tool calls but no content")
-                    continue
-
-            # Return string content if it's meaningful
-            if message.content:
-                content_str = str(message.content).strip()
-                logger.debug(f"  Content length: {len(content_str)} chars")
-                logger.debug(f"  Content preview: {content_str[:100]}...")
-
-                # Skip if it looks like a JSON tool call representation
-                if content_str.startswith('{') or content_str.startswith('['):
-                    # Accept longer JSON responses (actual content, not tool calls)
-                    if len(content_str) > 200:
-                        logger.info("Returning JSON-like content (>200 chars)")
-                        return content_str
-                    logger.debug("  Skipping: short JSON-like content")
-                    continue
-
-                # Skip XML-style function call outputs (e.g., <function=...>)
-                if '<function=' in content_str or '</function>' in content_str:
-                    logger.debug("  Skipping: XML-style function call")
-                    continue
-
-                # Return meaningful text content
-                if content_str:
-                    logger.info(f"Returning text content ({len(content_str)} chars)")
-                    return content_str
-            else:
-                logger.debug("  No content in this AIMessage")
-
-    logger.warning(f"No valid response found after scanning {ai_message_count} AIMessages")
-    logger.warning(f"Total messages in result: {len(result.get('messages', []))}")
-    return "No response generated."
+    # Use extract_final_response for consistent extraction with XML fallback support
+    return extract_final_response(result["messages"], tools_map)
 
 
-def run_agent(agent, question: str, system_prompt: str = None) -> str:
+def run_agent(agent, question: str, system_prompt: str = None, tools_map: dict = None) -> str:
     """
     Run the agent synchronously with a question.
 
@@ -474,6 +432,7 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
         agent: The compiled agent
         question: User's question
         system_prompt: Optional system prompt
+        tools_map: Optional map of tool names to tool functions (for XML fallback)
 
     Returns:
         Agent's response
@@ -513,51 +472,8 @@ def run_agent(agent, question: str, system_prompt: str = None) -> str:
                 sanitized.append(m)
         result["messages"] = sanitized
 
-    # Get the last AI message with actual response content
-    logger.info("Scanning messages for final response...")
-    ai_message_count = 0
-    for message in reversed(result["messages"]):
-        if isinstance(message, AIMessage):
-            ai_message_count += 1
-            logger.debug(f"Found AIMessage #{ai_message_count}")
-
-            # Skip messages that only contain tool calls without text content
-            if hasattr(message, 'tool_calls') and message.tool_calls:
-                logger.debug(f"  Has {len(message.tool_calls)} tool calls")
-                if not message.content or not str(message.content).strip():
-                    logger.debug("  Skipping: has tool calls but no content")
-                    continue
-
-            # Return string content if it's meaningful
-            if message.content:
-                content_str = str(message.content).strip()
-                logger.debug(f"  Content length: {len(content_str)} chars")
-                logger.debug(f"  Content preview: {content_str[:100]}...")
-
-                # Skip if it looks like a JSON tool call representation
-                if content_str.startswith('{') or content_str.startswith('['):
-                    # Accept longer JSON responses (actual content, not tool calls)
-                    if len(content_str) > 200:
-                        logger.info("Returning JSON-like content (>200 chars)")
-                        return content_str
-                    logger.debug("  Skipping: short JSON-like content")
-                    continue
-
-                # Skip XML-style function call outputs (e.g., <function=...>)
-                if '<function=' in content_str or '</function>' in content_str:
-                    logger.debug("  Skipping: XML-style function call")
-                    continue
-
-                # Return meaningful text content
-                if content_str:
-                    logger.info(f"Returning text content ({len(content_str)} chars)")
-                    return content_str
-            else:
-                logger.debug("  No content in this AIMessage")
-
-    logger.warning(f"No valid response found after scanning {ai_message_count} AIMessages")
-    logger.warning(f"Total messages in result: {len(result.get('messages', []))}")
-    return "No response generated."
+    # Use extract_final_response for consistent extraction with XML fallback support
+    return extract_final_response(result["messages"], tools_map)
 
 
 def extract_final_response(messages: list[BaseMessage], tools_map: dict = None) -> str:

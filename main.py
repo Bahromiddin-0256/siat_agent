@@ -256,7 +256,7 @@ async def chat(message: ChatMessage):
     Returns:
         The agent's response
     """
-    global agent, system_prompt
+    global agent, system_prompt, tools_map
 
     if not message.message.strip():
         logger.warning("Empty message received")
@@ -272,8 +272,8 @@ async def chat(message: ChatMessage):
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
-        # Use the agent with system prompt
-        response = await run_agent_async(agent, message.message, system_prompt)
+        # Use the agent with system prompt and tools_map for XML fallback
+        response = await run_agent_async(agent, message.message, system_prompt, tools_map)
         logger.info("Chat response generated successfully")
         return ChatResponse(response=response)
 
