@@ -95,22 +95,7 @@ def initialize_sdmx_data(json_file_path: str | Path) -> None:
     _json_data = load_json_data(json_file_path)
 
 
-@tool
-def get_sdmx_id(question: str) -> str:
-    """
-    Search for SDMX IDs in statistical data based on a question.
-
-    Use this tool when you need to find statistical indicators or datasets.
-    The tool searches through economic, social, and demographic statistics
-    to find relevant SDMX identifiers.
-
-    Args:
-        question: A question or query about statistics (e.g., "GDP quarterly",
-                  "population", "inflation", "export import")
-
-    Returns:
-        A formatted string with matching SDMX IDs and their details
-    """
+def _get_sdmx_id(question: str) -> str:
     if not _json_data:
         return "Error: SDMX data not initialized. Call initialize_sdmx_data first."
 
@@ -161,6 +146,25 @@ def get_sdmx_id(question: str) -> str:
 
 
 @tool
+def get_sdmx_id(question: str) -> str:
+    """
+        Search for SDMX IDs in statistical data based on a question.
+
+        Use this tool when you need to find statistical indicators or datasets.
+        The tool searches through economic, social, and demographic statistics
+        to find relevant SDMX identifiers.
+
+        Args:
+            question: A question or query about statistics (e.g., "GDP quarterly",
+                      "population", "inflation", "export import")
+
+        Returns:
+            A formatted string with matching SDMX IDs and their details
+    """
+    return _get_sdmx_id(question)
+
+
+@tool
 def get_sdmx_by_code(code: str) -> str:
     """
     Get detailed information about a specific SDMX indicator by its code.
@@ -190,7 +194,7 @@ def get_sdmx_by_code(code: str) -> str:
     result = find_by_code(_json_data, code)
 
     if not result:
-        return f"No indicator found with code: {code}"
+        return f"No indicator found with code: {code}\n" + get_sdmx_id(code)
 
     output_lines = [
         f"**Indicator Details**\n",

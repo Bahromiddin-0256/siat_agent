@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize metadata RAG vector store
         logger.info("Initializing metadata RAG vector store...")
-        initialize_metadata_vectorstore()
+        initialize_metadata_vectorstore(persist_directory=settings.metadata_chroma_persist_dir)
         logger.info("Metadata RAG vector store initialized successfully!")
 
         # Create the agent

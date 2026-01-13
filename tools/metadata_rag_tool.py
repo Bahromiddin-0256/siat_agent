@@ -177,8 +177,9 @@ def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[Docu
 
 
 def initialize_metadata_vectorstore(
+    *,
+    persist_directory: str,
     base_dir: str = "jsons/sdmxs",
-    persist_directory: str = None,
     embedding_model: str = None,
 ) -> VectorStore:
     """
@@ -195,8 +196,6 @@ def initialize_metadata_vectorstore(
     global _metadata_vector_store
 
     logger.info("Initializing metadata RAG vector store")
-    if persist_directory is None:
-        persist_directory = str(BASE_DIR / "metadata_chroma_db")
 
     if embedding_model is None:
         embedding_model = settings.ollama_embedding_model
@@ -254,8 +253,9 @@ def get_metadata_vectorstore() -> VectorStore | None:
 
 
 def rebuild_metadata_vectorstore(
+    *,
+    persist_directory: str,
     base_dir: str = "jsons/sdmxs",
-    persist_directory: str = None,
     embedding_model: str = None,
 ) -> VectorStore:
     """
@@ -272,9 +272,6 @@ def rebuild_metadata_vectorstore(
         Rebuilt vector store
     """
     import shutil
-
-    if persist_directory is None:
-        persist_directory = str(settings.BASE_DIR / "metadata_chroma_db")
 
     persist_path = Path(persist_directory)
 
