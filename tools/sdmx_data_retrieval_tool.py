@@ -5,37 +5,15 @@ This tool reads local SDMX data files and extracts specific values
 based on SDMX ID, year, and region/classifier to minimize LLM context.
 """
 
-import json
 from pathlib import Path
 from typing import Optional, List
 
 from langchain_core.tools import tool
 from core.logger import setup_logger
+from tools.file_utils import load_sdmx_data_file  # noqa: F401 — re-exported for callers
+from tools.constants import Units, Messages
 
 logger = setup_logger(__name__)
-
-
-def load_sdmx_data_file(sdmx_id: int, base_dir: str = "jsons/sdmxs") -> Optional[dict]:
-    """
-    Load SDMX data file from local storage.
-
-    Args:
-        sdmx_id: The SDMX identifier
-        base_dir: Base directory containing SDMX data files
-
-    Returns:
-        Parsed JSON data or None if file not found
-    """
-    file_path = Path(base_dir) / f"sdmx_data_{sdmx_id}.json"
-
-    if not file_path.exists():
-        return None
-
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        return None
 
 
 def extract_value_from_data(
@@ -149,7 +127,7 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         return f"Error: No data found in SDMX file {sdmx_id}"
 
     # Extract unit from metadata
-    unit = "kishi"  # default
+    unit = Units.DEFAULT
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
@@ -336,7 +314,7 @@ def calculate_yearly_growth(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit from metadata
-    unit = "kishi"  # default
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
@@ -410,7 +388,8 @@ def calculate_yearly_growth(
 
     # Calculate year-over-year growth rates
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
@@ -418,7 +397,8 @@ def calculate_yearly_growth(
     results.append("")
 
     # Header
-    results.append(f"{'Yil':<8} {'Qiymat':<15} {'O\'sish %':<12}")
+    _header = "{:<8} {:<15} {:<12}".format("Yil", "Qiymat", "O'sish %")
+    results.append(_header)
     results.append("-" * 40)
 
     # First year (no growth to calculate)

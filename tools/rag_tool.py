@@ -5,6 +5,7 @@ This tool uses vector embeddings and semantic search to find
 relevant SDMX IDs based on user questions.
 """
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,26 @@ logger = setup_logger(__name__)
 
 # Global variable to store vector store
 _vector_store: VectorStore | None = None
+
+# Simple TTL cache for semantic search results
+_query_cache: dict[str, tuple[str, datetime]] = {}
+_CACHE_TTL = timedelta(hours=1)
+
+
+def _cache_get(key: str) -> str | None:
+    """Return cached result if still fresh, else None."""
+    entry = _query_cache.get(key)
+    if entry and datetime.now() - entry[1] < _CACHE_TTL:
+        return entry[0]
+    return None
+
+
+def _cache_set(key: str, value: str) -> None:
+    """Store result in cache, evicting oldest entry when over 512 items."""
+    if len(_query_cache) >= 512:
+        oldest = min(_query_cache, key=lambda k: _query_cache[k][1])
+        del _query_cache[oldest]
+    _query_cache[key] = (value, datetime.now())
 
 
 def initialize_rag_vectorstore(
@@ -258,6 +279,13 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     if k > 50:
         k = 50
 
+    # Check cache before hitting the vector store
+    cache_key = f"{question}:{k}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        logger.debug(f"Cache hit for semantic search: '{question[:50]}'")
+        return cached
+
     # Perform semantic search
     results = _vector_store.similarity_search(question, k=k)
 
@@ -282,7 +310,9 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
             output_lines.append(f"   **Category Path**: {metadata.get('path')}")
         output_lines.append("")
 
-    return "\n".join(output_lines)
+    result = "\n".join(output_lines)
+    _cache_set(cache_key, result)
+    return result
 
 
 @tool(args_schema=_SearchWithScoreArgs) if _SearchWithScoreArgs else tool

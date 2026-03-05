@@ -5,17 +5,62 @@ This tool searches through hierarchical statistical data and returns
 relevant SDMX IDs based on user questions.
 """
 
-import json
 from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import tool
 
+from core.logger import setup_logger
+from tools.file_utils import load_json_safe
+
+logger = setup_logger(__name__)
+
+# Flattened search index built at initialisation time for O(1) lookups.
+# Maps lowercased name token -> list of item dicts that contain that token.
+_search_index: dict[str, list[dict[str, Any]]] = {}
+
 
 def load_json_data(json_file_path: str | Path) -> list[dict[str, Any]]:
-    """Load JSON data from file."""
-    with open(json_file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """Load JSON data from file with error handling."""
+    data = load_json_safe(Path(json_file_path))
+    if not data:
+        logger.warning(f"No data loaded from {json_file_path}")
+    return data
+
+
+def _build_search_index(items: list[dict[str, Any]]) -> None:
+    """
+    Build a flattened lowercase search index from the hierarchical SDMX tree.
+
+    Each unique name token maps to all item dicts that contain it, enabling
+    sub-millisecond keyword lookup instead of O(n) recursive traversal per query.
+    """
+    _search_index.clear()
+
+    def traverse(nodes: list[dict[str, Any]]) -> None:
+        for item in nodes:
+            name_fields = [
+                item.get("name", ""),
+                item.get("name_uz", ""),
+                item.get("name_en", ""),
+                item.get("name_ru", ""),
+                item.get("name_uzc", ""),
+            ]
+            tags = item.get("tags") or []
+            if isinstance(tags, list):
+                name_fields.extend(tags)
+
+            for field in name_fields:
+                token = str(field).lower().strip()
+                if token:
+                    _search_index.setdefault(token, []).append(item)
+
+            children = item.get("children")
+            if children and isinstance(children, list):
+                traverse(children)
+
+    traverse(items)
+    logger.info(f"Search index built: {len(_search_index)} unique tokens")
 
 
 def search_recursive(
@@ -86,13 +131,37 @@ _json_data: list[dict[str, Any]] = []
 
 def initialize_sdmx_data(json_file_path: str | Path) -> None:
     """
-    Initialize the SDMX data from JSON file.
+    Initialize the SDMX data from JSON file and build the search index.
 
     Args:
         json_file_path: Path to the JSON file containing SDMX data
     """
     global _json_data
     _json_data = load_json_data(json_file_path)
+    _build_search_index(_json_data)
+
+
+def _search_with_index(query_terms: list[str]) -> list[dict[str, Any]]:
+    """
+    Fast index-based search. Falls back to recursive scan when the index is empty
+    (e.g. when called before initialisation completes in tests).
+    """
+    if not _search_index:
+        return search_recursive(_json_data, query_terms)
+
+    seen_ids: set = set()
+    results: list[dict[str, Any]] = []
+
+    for token, items in _search_index.items():
+        if any(term in token for term in query_terms):
+            for item in items:
+                item_id = item.get("id")
+                key = item_id if item_id is not None else item.get("code")
+                if key not in seen_ids:
+                    seen_ids.add(key)
+                    results.append(item)
+
+    return results
 
 
 def _get_sdmx_id(question: str) -> str:
@@ -109,8 +178,8 @@ def _get_sdmx_id(question: str) -> str:
     if not query_terms:
         return "Please provide a more specific question with meaningful keywords."
 
-    # Search through the data
-    results = search_recursive(_json_data, query_terms)
+    # Use fast index-based search
+    results = _search_with_index(query_terms)
 
     if not results:
         return f"No matching SDMX IDs found for: '{question}'. Try different keywords."

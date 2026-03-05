@@ -5,6 +5,9 @@ This module provides a web-based chat interface for the SDMX ID retriever agent
 with both REST API and WebSocket support for real-time streaming.
 """
 
+import asyncio
+import time
+from collections import deque
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
@@ -12,8 +15,9 @@ from enum import Enum
 from datetime import datetime
 import json
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
@@ -21,15 +25,27 @@ from core.settings import settings
 from core.logger import setup_logger
 from tools import initialize_sdmx_data, initialize_rag_vectorstore, initialize_metadata_vectorstore
 from tools import sdmx_tool
+from tools.rag_tool import get_vectorstore
+from tools.metadata_rag_tool import get_metadata_vectorstore
 
 logger = setup_logger(__name__)
 
-# Load environment variables
+# ---------------------------------------------------------------------------
+# Application state — encapsulated in a plain namespace to avoid bare globals
+# ---------------------------------------------------------------------------
 
-# Global agent instance and system prompt
-agent = None
-system_prompt = None
+class _AppState:
+    agent = None
+    system_prompt: Optional[str] = None
+    tools_map: Dict[str, Any] = {}
 
+
+_state = _AppState()
+
+
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
 
 class ChatMessage(BaseModel):
     """Chat message model."""
@@ -60,18 +76,46 @@ class ToolCallMessage(BaseModel):
     timestamp: Optional[str] = None
 
 
+# ---------------------------------------------------------------------------
+# WebSocket connection manager with per-connection rate limiting
+# ---------------------------------------------------------------------------
+
+_RATE_LIMIT_MESSAGES = 10   # max messages
+_RATE_LIMIT_WINDOW = 1.0    # per second
+_MAX_MESSAGE_BYTES = 64_000  # 64 KB per message
+
+
 class ConnectionManager:
-    """Manages WebSocket connections."""
+    """Manages WebSocket connections with per-connection rate limiting."""
 
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        # Maps websocket id -> deque of message timestamps
+        self._rate_windows: Dict[int, deque] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        self._rate_windows[id(websocket)] = deque()
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        self._rate_windows.pop(id(websocket), None)
+
+    def check_rate_limit(self, websocket: WebSocket) -> bool:
+        """Return True if the connection is within the rate limit."""
+        window = self._rate_windows.get(id(websocket))
+        if window is None:
+            return True
+        now = time.monotonic()
+        # Evict timestamps older than the window
+        while window and window[0] < now - _RATE_LIMIT_WINDOW:
+            window.popleft()
+        if len(window) >= _RATE_LIMIT_MESSAGES:
+            return False
+        window.append(now)
+        return True
 
     async def send_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
@@ -80,52 +124,109 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+# ---------------------------------------------------------------------------
+# Audit logging middleware
+# ---------------------------------------------------------------------------
+
+class AuditMiddleware(BaseHTTPMiddleware):
+    """Log every HTTP request with method, path, status, and duration."""
+
+    async def dispatch(self, request: Request, call_next):
+        start = time.monotonic()
+        response = await call_next(request)
+        duration_ms = (time.monotonic() - start) * 1000
+        logger.info(
+            "AUDIT | %s %s | status=%d | %.1fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+        return response
+
+
+# ---------------------------------------------------------------------------
+# Lifespan — startup / shutdown
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize the agent on startup."""
-    global agent, system_prompt, tools_map
+    """Validate config, initialise data and the agent on startup."""
+
+    # --- Fail fast on bad config ---
+    config_errors = settings.validate_config()
+    if config_errors:
+        for err in config_errors:
+            logger.error("Config error: %s", err)
+        raise RuntimeError("Invalid configuration — see logs above")
 
     try:
-        # Initialize SDMX data and RAG vector store
         json_path = Path(__file__).parent / "jsons" / "main.json"
-        logger.info(f"Loading SDMX data from: {json_path}")
+        logger.info("Loading SDMX data from: %s", json_path)
 
-        # Initialize keyword-based search
-        initialize_sdmx_data(json_path)
+        # Run blocking I/O in the default thread-pool executor so we don't
+        # stall the event loop.
+        loop = asyncio.get_event_loop()
+
+        await asyncio.wait_for(
+            loop.run_in_executor(None, initialize_sdmx_data, json_path),
+            timeout=120.0,
+        )
         logger.info("SDMX data loaded successfully!")
 
-        # Initialize RAG vector store
         logger.info("Initializing RAG vector store with embeddings...")
-        initialize_rag_vectorstore(sdmx_tool._json_data)
+        await asyncio.wait_for(
+            loop.run_in_executor(
+                None, initialize_rag_vectorstore, sdmx_tool._json_data
+            ),
+            timeout=180.0,
+        )
         logger.info("RAG vector store initialized successfully!")
 
-        # Initialize metadata RAG vector store
         logger.info("Initializing metadata RAG vector store...")
-        initialize_metadata_vectorstore(persist_directory=settings.metadata_chroma_persist_dir)
+        await asyncio.wait_for(
+            loop.run_in_executor(
+                None,
+                initialize_metadata_vectorstore,
+                settings.metadata_chroma_persist_dir,
+            ),
+            timeout=180.0,
+        )
         logger.info("Metadata RAG vector store initialized successfully!")
 
-        # Create the agent
         logger.info("Creating SDMX agent...")
-        agent, system_prompt, tools_map = create_sdmx_agent()
+        _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent()
         logger.info("Application startup complete!")
 
         yield
 
-    except Exception as e:
-        logger.error(f"Error during startup: {e}", exc_info=True)
+    except asyncio.TimeoutError as exc:
+        logger.error("Startup timed out during initialisation: %s", exc)
+        raise
+    except Exception as exc:
+        logger.error("Error during startup: %s", exc, exc_info=True)
         raise
     finally:
-        # Cleanup
         logger.info("Shutting down application...")
 
+
+# ---------------------------------------------------------------------------
+# FastAPI app
+# ---------------------------------------------------------------------------
 
 app = FastAPI(
     title="SDMX ID Retriever Chat API",
     description="Chat interface for finding statistical indicator IDs",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
+app.add_middleware(AuditMiddleware)
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat_interface():
@@ -256,29 +357,27 @@ async def chat(message: ChatMessage):
     Returns:
         The agent's response
     """
-    global agent, system_prompt, tools_map
-
     if not message.message.strip():
         logger.warning("Empty message received")
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    logger.info(f"Received chat message: {message.message[:100]}...")
+    logger.info("Received chat message: %s...", message.message[:100])
 
     try:
-        if agent is None:
-            # Fallback to semantic search if agent is not available
+        if _state.agent is None:
             logger.warning("Agent not available, using fallback semantic search")
             from tools import search_sdmx_semantic
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
-        # Use the agent with system prompt and tools_map for XML fallback
-        response = await run_agent_async(agent, message.message, system_prompt, tools_map)
+        response = await run_agent_async(
+            _state.agent, message.message, _state.system_prompt, _state.tools_map
+        )
         logger.info("Chat response generated successfully")
         return ChatResponse(response=response)
 
     except Exception as e:
-        logger.error(f"Error processing chat message: {e}", exc_info=True)
+        logger.error("Error processing chat message: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing message: {str(e)}")
 
 
@@ -288,58 +387,76 @@ async def websocket_endpoint(websocket: WebSocket):
     WebSocket endpoint for real-time chat streaming.
 
     Connects to the agent and streams responses token by token.
+    Enforces per-connection rate limiting and message size limits.
     """
     await manager.connect(websocket)
     logger.info("WebSocket client connected")
 
     try:
         while True:
-            # Receive message from client
             data = await websocket.receive_text()
 
             if not data.strip():
                 continue
 
-            logger.info(f"Received WebSocket message: {data[:100]}...")
+            # Enforce message size limit
+            if len(data.encode()) > _MAX_MESSAGE_BYTES:
+                await manager.send_message(
+                    json.dumps({"type": "error", "content": "Message too large (max 64 KB)"}),
+                    websocket,
+                )
+                continue
+
+            # Enforce rate limit
+            if not manager.check_rate_limit(websocket):
+                await manager.send_message(
+                    json.dumps({"type": "error", "content": "Rate limit exceeded — slow down"}),
+                    websocket,
+                )
+                continue
+
+            logger.info("Received WebSocket message: %s...", data[:100])
 
             try:
-                global agent, system_prompt
-
-                if agent is None:
-                    # Fallback error message
+                if _state.agent is None:
                     await manager.send_message(
                         json.dumps({"type": "error", "content": "Agent not available"}),
-                        websocket
+                        websocket,
                     )
                 else:
-                    # Stream tool steps and final response
-                    async for message in run_agent_async_stream(agent, data, system_prompt, tools_map):
+                    async for message in run_agent_async_stream(
+                        _state.agent, data, _state.system_prompt, _state.tools_map
+                    ):
                         try:
-                            # Serialize with Unicode support and fallback
                             json_message = json.dumps(
                                 message,
-                                ensure_ascii=False,  # Preserve Unicode (Uzbek/Cyrillic)
-                                default=str           # Fallback: convert any non-serializable to string
+                                ensure_ascii=False,
+                                default=str,
                             )
                             await manager.send_message(json_message, websocket)
                         except (TypeError, ValueError) as e:
-                            # Log serialization error
-                            logger.error(f"JSON serialization error for message type {message.get('type', 'unknown')}: {e}", exc_info=True)
-
-                            # Send error message to client
-                            error_message = json.dumps({
-                                "type": "error",
-                                "content": f"Failed to serialize message: {str(e)}",
-                                "timestamp": datetime.now().isoformat()
-                            }, ensure_ascii=False)
+                            logger.error(
+                                "JSON serialization error for message type %s: %s",
+                                message.get("type", "unknown"),
+                                e,
+                                exc_info=True,
+                            )
+                            error_message = json.dumps(
+                                {
+                                    "type": "error",
+                                    "content": f"Failed to serialize message: {str(e)}",
+                                    "timestamp": datetime.now().isoformat(),
+                                },
+                                ensure_ascii=False,
+                            )
                             await manager.send_message(error_message, websocket)
                     logger.info("WebSocket streaming completed")
 
             except Exception as e:
-                logger.error(f"Error processing WebSocket message: {e}", exc_info=True)
+                logger.error("Error processing WebSocket message: %s", e, exc_info=True)
                 await manager.send_message(
                     json.dumps({"type": "error", "content": str(e)}),
-                    websocket
+                    websocket,
                 )
 
     except WebSocketDisconnect:
@@ -349,11 +466,35 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """
+    Detailed health check endpoint.
+
+    Verifies that all subsystems are operational and reports their status.
+    """
+    checks = {
+        "agent": _state.agent is not None,
+        "vector_store": get_vectorstore() is not None,
+        "metadata_store": get_metadata_vectorstore() is not None,
+        "json_data": bool(sdmx_tool._json_data),
+    }
+
+    # Non-blocking connectivity probe for Ollama (500 ms timeout)
+    ollama_ok = False
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=0.5) as client:
+            resp = await client.get(f"{settings.ollama_base_url}/api/tags")
+            ollama_ok = resp.status_code == 200
+    except Exception:
+        pass
+    checks["ollama"] = ollama_ok
+
+    all_ok = all(checks.values())
     return {
-        "status": "healthy",
-        "agent_available": agent is not None,
+        "status": "healthy" if all_ok else "degraded",
         "model": settings.ollama_model,
+        "provider": settings.llm_provider,
+        "checks": checks,
     }
 
 
@@ -365,5 +506,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=port,
-        reload=True
+        reload=False,   # Never use reload=True in production
     )

@@ -5,39 +5,15 @@ This module provides advanced statistical calculations for SDMX data including
 descriptive statistics, CAGR, regional comparisons, rankings, and distributions.
 """
 
-import json
 import statistics
-from pathlib import Path
 from typing import Optional, List, Tuple
 
 from langchain_core.tools import tool
 from core.logger import setup_logger
+from tools.file_utils import load_sdmx_data_file
+from tools.constants import Units
 
 logger = setup_logger(__name__)
-
-
-def load_sdmx_data_file(sdmx_id: int, base_dir: str = "jsons/sdmxs") -> Optional[dict]:
-    """
-    Load SDMX data file from local storage.
-
-    Args:
-        sdmx_id: The SDMX identifier
-        base_dir: Base directory containing SDMX data files
-
-    Returns:
-        Parsed JSON data or None if file not found
-    """
-    file_path = Path(base_dir) / f"sdmx_data_{sdmx_id}.json"
-
-    if not file_path.exists():
-        return None
-
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Error loading SDMX data file {sdmx_id}: {e}")
-        return None
 
 
 def get_time_series_data(
@@ -174,12 +150,12 @@ def calculate_statistics(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -215,7 +191,8 @@ def calculate_statistics(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"Davr: {start_year}-{end_year} ({len(filtered_data)} yil)")
     results.append(f"O'lchov birligi: {unit}")
@@ -286,12 +263,12 @@ def calculate_cagr(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -333,7 +310,8 @@ def calculate_cagr(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
@@ -344,7 +322,8 @@ def calculate_cagr(
     results.append(f"Davr:                            {n_years} yil")
     results.append(f"CAGR:                            {cagr:+.2f}%")
     results.append("")
-    results.append(f"Izoh: Yiliga o'rtacha {abs(cagr):.2f}% {'o\'sish' if cagr > 0 else 'kamayish'}")
+    _trend = "o'sish" if cagr > 0 else "kamayish"
+    results.append(f"Izoh: Yiliga o'rtacha {abs(cagr):.2f}% {_trend}")
 
     logger.info(f"Calculated CAGR: {cagr:.2f}%")
     return "\n".join(results)
@@ -392,12 +371,12 @@ def compare_regions(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -426,7 +405,8 @@ def compare_regions(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Yil: {year}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
@@ -493,12 +473,12 @@ def rank_regions(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -517,14 +497,16 @@ def rank_regions(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Yil: {year}")
     results.append(f"O'lchov birligi: {unit}")
     results.append(f"Tartiblash: {'Eng past' if ascending else 'Eng yuqori'} → {'Eng yuqori' if ascending else 'Eng past'}")
     results.append("")
     results.append("Reyting:")
     results.append("-" * 60)
-    results.append(f"{'O\'rin':<6} {'Mintaqa':<35} {'Qiymat':>15}")
+    _rank_header = "{:<6} {:<35} {:>15}".format("O'rin", "Mintaqa", "Qiymat")
+    results.append(_rank_header)
     results.append("-" * 60)
 
     for idx, region_data in enumerate(regions_data, 1):
@@ -575,12 +557,12 @@ def calculate_percentage_share(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -598,7 +580,8 @@ def calculate_percentage_share(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Yil: {year}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
@@ -667,12 +650,12 @@ def compare_years(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -709,7 +692,8 @@ def compare_years(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
@@ -776,12 +760,12 @@ def calculate_period_total(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -808,7 +792,8 @@ def calculate_period_total(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"Davr: {start_year}-{end_year} ({len(filtered_data)} yil)")
     results.append(f"O'lchov birligi: {unit}")
@@ -876,12 +861,12 @@ def calculate_moving_average(
         return f"Error: Invalid data format in SDMX file {sdmx_id}"
 
     # Extract unit and indicator name from metadata
-    unit = "kishi"
+    unit = Units.DEFAULT
     indicator_name = ""
     for item in metadata:
         name_en = item.get('name_en', '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
-            unit = item.get('value_uz', 'kishi')
+            unit = item.get('value_uz', Units.DEFAULT)
         elif 'indicator name' in name_en or 'dataset name' in name_en:
             indicator_name = item.get('value_uz', '')
 
@@ -913,7 +898,8 @@ def calculate_moving_average(
 
     # Format results
     results = []
-    results.append(f"SDMX ID {sdmx_id}: {indicator_name or 'Ko\'rsatkich'}")
+    _name = indicator_name or "Ko'rsatkich"
+    results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"O'lchov birligi: {unit}")
     results.append(f"Oyna: {window} yil")
