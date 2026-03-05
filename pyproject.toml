@@ -10,7 +10,8 @@ dependencies = [
     "langchain-community>=0.3.16",
     "langgraph>=0.2.63",
     "python-dotenv>=1.0.1",
-    "chromadb>=0.5.23",
+    "qdrant-client>=1.9.0",
+    "FlagEmbedding>=1.2.0",
     "tiktoken>=0.8.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -19,5 +20,4 @@ dependencies = [
     "langchain-groq>=1.1.1",
     "langchain-openai>=1.1.6",
     "httpx>=0.28.1",
-    "langchain-chroma>=1.1.0",
 ]
