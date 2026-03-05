@@ -12,7 +12,7 @@ _VALID_PROVIDERS = {"ollama", "groq", "open_router", "deepinfra"}
 class Settings(BaseSettings):
     llm_provider: str
     ollama_model: str
-    ollama_embedding_model: str
+    ollama_embedding_model: str = ""  # No longer used; BGE-M3 handles embeddings
     ollama_base_url: str = "http://localhost:11434"
     port: int = 8000
     groq_model: str = ""
@@ -23,9 +23,11 @@ class Settings(BaseSettings):
     deepinfra_base_url: str = "https://api.deepinfra.com/v1/openai"
     deepinfra_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
-    # Vector store paths (ChromaDB)
-    chroma_persist_dir: Path = BASE_DIR / "vector" / "sdmx_rag"
-    metadata_chroma_persist_dir: Path = BASE_DIR / "vector" / "metadata_rag"
+    # BGE-M3 embedding model (HuggingFace model ID or local path)
+    bge_m3_model: str = "BAAI/bge-m3"
+
+    # Vector store path (Qdrant local, both collections share one directory)
+    qdrant_persist_dir: Path = BASE_DIR / "vector" / "qdrant"
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),

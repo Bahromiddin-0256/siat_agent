@@ -188,7 +188,6 @@ async def lifespan(app: FastAPI):
             loop.run_in_executor(
                 None,
                 initialize_metadata_vectorstore,
-                settings.metadata_chroma_persist_dir,
             ),
             timeout=180.0,
         )

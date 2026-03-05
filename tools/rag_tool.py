@@ -1,27 +1,36 @@
 """
 RAG-based SDMX ID Retriever Tool.
 
-This tool uses vector embeddings and semantic search to find
-relevant SDMX IDs based on user questions.
+Uses BGE-M3 (dense + sparse) with Qdrant for hybrid semantic search
+via Reciprocal Rank Fusion (RRF).
 """
 
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from langchain_core.documents import Document
 from langchain_core.tools import tool
-from langchain_ollama import OllamaEmbeddings
-from langchain_chroma.vectorstores import Chroma
-from langchain_core.vectorstores import VectorStore
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    FusionQuery,
+    Fusion,
+    PointStruct,
+    Prefetch,
+    SparseIndexParams,
+    SparseVector,
+    SparseVectorParams,
+    VectorParams,
+)
 
 from core.settings import settings
 from core.logger import setup_logger
+from tools.embedder import encode_dense_sparse, encode_query
 
 logger = setup_logger(__name__)
 
-# Global variable to store vector store
-_vector_store: VectorStore | None = None
+_COLLECTION = "sdmx_rag"
+_client: QdrantClient | None = None
 
 # Simple TTL cache for semantic search results
 _query_cache: dict[str, tuple[str, datetime]] = {}
@@ -44,181 +53,166 @@ def _cache_set(key: str, value: str) -> None:
     _query_cache[key] = (value, datetime.now())
 
 
+def _get_client() -> QdrantClient:
+    global _client
+    if _client is None:
+        persist_dir = settings.qdrant_persist_dir
+        persist_dir.mkdir(parents=True, exist_ok=True)
+        _client = QdrantClient(path=str(persist_dir))
+    return _client
+
+
 def initialize_rag_vectorstore(
     json_data: list[dict[str, Any]],
-    persist_directory: str = None,
-    embedding_model: str = None,
-) -> VectorStore:
+    persist_directory: str = None,  # kept for API compatibility, unused
+    embedding_model: str = None,    # kept for API compatibility, unused
+) -> QdrantClient:
     """
     Initialize the RAG vector store from JSON data.
 
-    Args:
-        json_data: List of SDMX data items
-        persist_directory: Directory to persist the vector store
-        embedding_model: Ollama embedding model to use
-
-    Returns:
-        Initialized vector store
+    On restart, loads from the persisted Qdrant collection if it already
+    contains data. Otherwise encodes all documents with BGE-M3 and indexes
+    them with both dense and sparse vectors for hybrid search.
     """
-    global _vector_store
+    client = _get_client()
 
-    logger.info("Initializing RAG vector store")
+    # Skip re-indexing if the collection already has points
+    try:
+        info = client.get_collection(_COLLECTION)
+        if info.points_count > 0:
+            logger.info(
+                f"Loaded existing Qdrant collection '{_COLLECTION}' "
+                f"({info.points_count} points)"
+            )
+            return client
+    except Exception:
+        pass  # Collection does not exist yet
 
-    if persist_directory is None:
-        persist_directory = str(settings.chroma_persist_dir)
+    logger.info(f"Creating Qdrant collection '{_COLLECTION}'...")
+    try:
+        client.delete_collection(_COLLECTION)
+    except Exception:
+        pass
 
-    if embedding_model is None:
-        embedding_model = settings.ollama_embedding_model
-
-    logger.info(f"Using embedding model: {embedding_model}")
-
-    # Create embeddings
-    embeddings = OllamaEmbeddings(
-        model=embedding_model,
-        base_url=settings.ollama_base_url,
+    client.create_collection(
+        collection_name=_COLLECTION,
+        vectors_config={"dense": VectorParams(size=1024, distance=Distance.COSINE)},
+        sparse_vectors_config={
+            "sparse": SparseVectorParams(index=SparseIndexParams())
+        },
     )
 
-    # Convert SDMX data to documents
-    documents = []
-    seen_ids = set()  # Track unique IDs to prevent duplicates
+    # Extract documents from nested SDMX hierarchy
+    texts: list[str] = []
+    payloads: list[dict] = []
+    seen_ids: set = set()
 
-    def extract_documents(items: list[dict[str, Any]], path: list[str] = None):
-        """Recursively extract documents from nested structure."""
+    def extract(items: list[dict[str, Any]], path: list[str] | None = None) -> None:
         if path is None:
             path = []
-
         for item in items:
-            # Only create documents for items with codes
-            if item.get('code'):
-                # Create a unique identifier
-                item_id = item.get('id')
-                item_code = item.get('code')
+            if not item.get("code"):
+                continue
+            item_id = item.get("id")
+            if item_id and item_id in seen_ids:
+                continue
+            if item_id:
+                seen_ids.add(item_id)
 
-                # Skip if we've already processed this ID
-                if item_id and item_id in seen_ids:
-                    continue
+            parts = []
+            for field, label in [
+                ("name", "Name"),
+                ("name_en", "English"),
+                ("name_ru", "Russian"),
+                ("name_uz", "Uzbek"),
+            ]:
+                if item.get(field):
+                    parts.append(f"{label}: {item[field]}")
+            tags = item.get("tags", [])
+            if tags:
+                parts.append(f"Tags: {', '.join(tags)}")
+            if item.get("period"):
+                parts.append(f"Period: {item['period']}")
+            if item.get("department"):
+                parts.append(f"Department: {item['department']}")
 
-                # Mark as seen
-                if item_id:
-                    seen_ids.add(item_id)
+            texts.append("\n".join(parts))
+            payloads.append(
+                {
+                    "id": str(item_id) if item_id else item.get("code"),
+                    "code": item.get("code"),
+                    "name": item.get("name"),
+                    "name_en": item.get("name_en"),
+                    "name_ru": item.get("name_ru"),
+                    "period": item.get("period"),
+                    "department": item.get("department"),
+                    "status": item.get("status"),
+                    "path": " > ".join(path + [item.get("name", "")]),
+                }
+            )
 
-                # Combine all name fields for better searchability
-                content_parts = []
-
-                if item.get('name'):
-                    content_parts.append(f"Name: {item['name']}")
-                if item.get('name_en'):
-                    content_parts.append(f"English: {item['name_en']}")
-                if item.get('name_ru'):
-                    content_parts.append(f"Russian: {item['name_ru']}")
-                if item.get('name_uz'):
-                    content_parts.append(f"Uzbek: {item['name_uz']}")
-
-                # Add tags if available
-                tags = item.get('tags', [])
-                if tags:
-                    content_parts.append(f"Tags: {', '.join(tags)}")
-
-                # Add period and department info
-                if item.get('period'):
-                    content_parts.append(f"Period: {item['period']}")
-                if item.get('department'):
-                    content_parts.append(f"Department: {item['department']}")
-
-                content = "\n".join(content_parts)
-
-                # Create document with metadata
-                doc = Document(
-                    page_content=content,
-                    metadata={
-                        'id': str(item_id) if item_id else item_code,
-                        'code': item_code,
-                        'name': item.get('name'),
-                        'name_en': item.get('name_en'),
-                        'name_ru': item.get('name_ru'),
-                        'period': item.get('period'),
-                        'department': item.get('department'),
-                        'status': item.get('status'),
-                        'path': ' > '.join(path + [item.get('name', '')]),
-                    }
-                )
-                documents.append(doc)
-
-            # Recursively process children
-            children = item.get('children', [])
+            children = item.get("children", [])
             if children:
-                current_path = path + [item.get('name', 'Unknown')]
-                extract_documents(children, current_path)
+                extract(children, path + [item.get("name", "Unknown")])
 
-    # Create or load vector store
-    persist_path = Path(persist_directory)
+    extract(json_data)
+    logger.info(f"Extracted {len(texts)} documents from SDMX data")
 
-    # Check if vector store already exists - load it instead of recreating
-    if persist_path.exists() and (persist_path / "chroma.sqlite3").exists():
-        logger.info("Loading existing vector store from disk")
-        _vector_store = Chroma(
-            persist_directory=str(persist_path),
-            embedding_function=embeddings,
+    # Encode with BGE-M3 (dense + sparse)
+    logger.info("Encoding documents with BGE-M3 (this may take a while)...")
+    dense_vecs, sparse_weights = encode_dense_sparse(texts)
+
+    # Build Qdrant points
+    points = [
+        PointStruct(
+            id=i,
+            vector={
+                "dense": dense,
+                "sparse": SparseVector(
+                    indices=list(sparse.keys()),
+                    values=list(sparse.values()),
+                ),
+            },
+            payload={"text": text, **payload},
         )
-        logger.info(f"Vector store loaded successfully")
-        return _vector_store
+        for i, (text, payload, dense, sparse) in enumerate(
+            zip(texts, payloads, dense_vecs, sparse_weights)
+        )
+    ]
 
-    # Extract all documents only if we need to create a new vector store
-    logger.info("Creating new vector store (this may take a while)...")
-    extract_documents(json_data)
-    logger.info(f"Extracted {len(documents)} documents from SDMX data")
+    # Upsert in batches of 100
+    batch_size = 100
+    for i in range(0, len(points), batch_size):
+        client.upsert(collection_name=_COLLECTION, points=points[i : i + batch_size])
 
-    # Generate unique IDs for each document to prevent duplicates
-    ids = [f"sdmx_{doc.metadata.get('id', doc.metadata.get('code', i))}"
-           for i, doc in enumerate(documents)]
-
-    # Create fresh vector store with current data
-    _vector_store = Chroma.from_documents(
-        documents=documents,
-        embedding=embeddings,
-        persist_directory=str(persist_path),
-        ids=ids,
+    logger.info(
+        f"Qdrant collection '{_COLLECTION}' created and indexed with {len(points)} points"
     )
-    logger.info("Vector store created and persisted successfully")
-
-    return _vector_store
+    return client
 
 
-def get_vectorstore() -> VectorStore | None:
-    """Get the initialized vector store."""
-    return _vector_store
+def get_vectorstore() -> QdrantClient | None:
+    """Get the initialized Qdrant client."""
+    return _client
 
 
 def rebuild_vectorstore(
     json_data: list[dict[str, Any]],
     persist_directory: str = None,
     embedding_model: str = None,
-) -> VectorStore:
-    """
-    Force rebuild the vector store (use when JSON data has changed).
-
-    This deletes the existing vector store and creates a new one.
-    """
-    import shutil
-
-    if persist_directory is None:
-        persist_directory = str(settings.chroma_persist_dir)
-
-    persist_path = Path(persist_directory)
-
-    # Remove existing vector store
-    if persist_path.exists():
-        logger.info(f"Removing existing vector store at {persist_path}")
-        shutil.rmtree(persist_path)
-
-    # Reinitialize
-    logger.info("Reinitializing vector store with new data")
+) -> QdrantClient:
+    """Force rebuild the vector store (use when JSON data has changed)."""
+    client = _get_client()
+    try:
+        client.delete_collection(_COLLECTION)
+        logger.info(f"Deleted existing collection '{_COLLECTION}'")
+    except Exception:
+        pass
     return initialize_rag_vectorstore(json_data, persist_directory, embedding_model)
 
 
-# --- Tool argument schemas (Groq can validate strictly) ---
+# --- Tool argument schemas ---
 try:
-    # Pydantic v2
     from pydantic import BaseModel, Field
     from typing import Union
 
@@ -240,7 +234,7 @@ try:
             description="Minimum similarity score (0-1). May be a float or a numeric string.",
         )
 
-except (ImportError, AttributeError) as e:  # pragma: no cover
+except (ImportError, AttributeError) as e:
     logger.warning(f"Failed to create Pydantic argument schemas: {e}")
     _SemanticSearchArgs = None
     _SearchWithScoreArgs = None
@@ -251,9 +245,9 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     """
     Search for SDMX IDs using semantic similarity (RAG-based).
 
-    This tool uses vector embeddings to find statistically relevant indicators
-    based on semantic meaning, not just keyword matching. Best for complex
-    or nuanced questions about statistics.
+    This tool uses BGE-M3 hybrid search (dense + sparse vectors with RRF fusion)
+    to find statistically relevant indicators based on semantic meaning.
+    Best for complex or nuanced questions about statistics.
 
     Args:
         question: A question about statistics
@@ -262,10 +256,9 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     Returns:
         Formatted string with matching SDMX IDs and their details
     """
-    if _vector_store is None:
+    if _client is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
 
-    # Defensive coercion: some models send tool args as strings (e.g., {"k": "10"}).
     try:
         if isinstance(k, str):
             k = int(k)
@@ -273,41 +266,51 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
         logger.warning(f"Invalid k parameter '{k}', defaulting to 10: {e}")
         k = 10
 
-    # Bound k to safe limits
-    if k <= 0:
-        k = 10
-    if k > 50:
-        k = 50
+    k = max(1, min(k, 50))
 
-    # Check cache before hitting the vector store
     cache_key = f"{question}:{k}"
     cached = _cache_get(cache_key)
     if cached is not None:
         logger.debug(f"Cache hit for semantic search: '{question[:50]}'")
         return cached
 
-    # Perform semantic search
-    results = _vector_store.similarity_search(question, k=k)
+    dense, sparse = encode_query(question)
+
+    results = _get_client().query_points(
+        collection_name=_COLLECTION,
+        prefetch=[
+            Prefetch(query=dense, using="dense", limit=k * 2),
+            Prefetch(
+                query=SparseVector(
+                    indices=list(sparse.keys()),
+                    values=list(sparse.values()),
+                ),
+                using="sparse",
+                limit=k * 2,
+            ),
+        ],
+        query=FusionQuery(fusion=Fusion.RRF),
+        limit=k,
+    ).points
 
     if not results:
         return f"No matching SDMX IDs found for: '{question}'"
 
-    # Format output
     output_lines = [f"Found {len(results)} semantically similar indicator(s):\n"]
 
-    for idx, doc in enumerate(results, 1):
-        metadata = doc.metadata
-        output_lines.append(f"{idx}. **ID**: {metadata.get('id')}")
-        output_lines.append(f"   **Code**: {metadata.get('code')}")
-        output_lines.append(f"   **Name**: {metadata.get('name')}")
-        if metadata.get('name_en'):
-            output_lines.append(f"   **English**: {metadata.get('name_en')}")
-        if metadata.get('period'):
-            output_lines.append(f"   **Period**: {metadata.get('period')}")
-        if metadata.get('status'):
-            output_lines.append(f"   **Status**: {metadata.get('status')}")
-        if metadata.get('path'):
-            output_lines.append(f"   **Category Path**: {metadata.get('path')}")
+    for idx, point in enumerate(results, 1):
+        p = point.payload
+        output_lines.append(f"{idx}. **ID**: {p.get('id')}")
+        output_lines.append(f"   **Code**: {p.get('code')}")
+        output_lines.append(f"   **Name**: {p.get('name')}")
+        if p.get("name_en"):
+            output_lines.append(f"   **English**: {p.get('name_en')}")
+        if p.get("period"):
+            output_lines.append(f"   **Period**: {p.get('period')}")
+        if p.get("status"):
+            output_lines.append(f"   **Status**: {p.get('status')}")
+        if p.get("path"):
+            output_lines.append(f"   **Category Path**: {p.get('path')}")
         output_lines.append("")
 
     result = "\n".join(output_lines)
@@ -318,10 +321,9 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
 @tool(args_schema=_SearchWithScoreArgs) if _SearchWithScoreArgs else tool
 def search_sdmx_with_score(question: str, k: int = 10, score_threshold: float = 0.7) -> str:
     """Search for SDMX IDs with similarity scores."""
-    if _vector_store is None:
+    if _client is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
 
-    # Defensive coercion for tool-call args
     try:
         if isinstance(k, str):
             k = int(k)
@@ -336,40 +338,37 @@ def search_sdmx_with_score(question: str, k: int = 10, score_threshold: float = 
         logger.warning(f"Invalid score_threshold '{score_threshold}', defaulting to 0.7: {e}")
         score_threshold = 0.7
 
-    if k <= 0:
-        k = 10
-    if k > 50:
-        k = 50
-
-    # Clamp threshold
+    k = max(1, min(k, 50))
     if score_threshold <= 0 or score_threshold > 1:
         score_threshold = 0.7
 
-    # Perform similarity search with scores
-    results = _vector_store.similarity_search_with_score(question, k=k)
+    dense, _ = encode_query(question)
 
-    # Filter by score threshold
-    filtered_results = [(doc, score) for doc, score in results if score <= (1 - score_threshold)]
+    # Dense-only search with score threshold (Qdrant cosine scores are directly 0-1)
+    results = _get_client().search(
+        collection_name=_COLLECTION,
+        query_vector=("dense", dense),
+        limit=k,
+        score_threshold=score_threshold,
+    )
 
-    if not filtered_results:
+    if not results:
         return f"No matching SDMX IDs found above threshold {score_threshold} for: '{question}'"
 
-    # Format output
     output_lines = [
-        f"Found {len(filtered_results)} indicator(s) above similarity threshold {score_threshold}:\n"
+        f"Found {len(results)} indicator(s) above similarity threshold {score_threshold}:\n"
     ]
 
-    for idx, (doc, score) in enumerate(filtered_results, 1):
-        metadata = doc.metadata
-        relevance = 1 - score  # Convert distance to similarity
-        output_lines.append(f"{idx}. **Relevance**: {relevance:.2%}")
-        output_lines.append(f"   **ID**: {metadata.get('id')}")
-        output_lines.append(f"   **Code**: {metadata.get('code')}")
-        output_lines.append(f"   **Name**: {metadata.get('name')}")
-        if metadata.get('name_en'):
-            output_lines.append(f"   **English**: {metadata.get('name_en')}")
-        if metadata.get('period'):
-            output_lines.append(f"   **Period**: {metadata.get('period')}")
+    for idx, point in enumerate(results, 1):
+        p = point.payload
+        output_lines.append(f"{idx}. **Relevance**: {point.score:.2%}")
+        output_lines.append(f"   **ID**: {p.get('id')}")
+        output_lines.append(f"   **Code**: {p.get('code')}")
+        output_lines.append(f"   **Name**: {p.get('name')}")
+        if p.get("name_en"):
+            output_lines.append(f"   **English**: {p.get('name_en')}")
+        if p.get("period"):
+            output_lines.append(f"   **Period**: {p.get('period')}")
         output_lines.append("")
 
     return "\n".join(output_lines)
