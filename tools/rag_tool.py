@@ -26,11 +26,11 @@ from qdrant_client.models import (
 from core.settings import settings
 from core.logger import setup_logger
 from tools.embedder import encode_dense_sparse, encode_query
+from tools.qdrant_shared_client import get_shared_client
 
 logger = setup_logger(__name__)
 
 _COLLECTION = "sdmx_rag"
-_client: QdrantClient | None = None
 
 # Simple TTL cache for semantic search results
 _query_cache: dict[str, tuple[str, datetime]] = {}
@@ -54,12 +54,7 @@ def _cache_set(key: str, value: str) -> None:
 
 
 def _get_client() -> QdrantClient:
-    global _client
-    if _client is None:
-        persist_dir = settings.qdrant_persist_dir
-        persist_dir.mkdir(parents=True, exist_ok=True)
-        _client = QdrantClient(path=str(persist_dir))
-    return _client
+    return get_shared_client()
 
 
 def initialize_rag_vectorstore(
@@ -193,7 +188,7 @@ def initialize_rag_vectorstore(
 
 def get_vectorstore() -> QdrantClient | None:
     """Get the initialized Qdrant client."""
-    return _client
+    return get_shared_client()
 
 
 def rebuild_vectorstore(
@@ -256,7 +251,7 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     Returns:
         Formatted string with matching SDMX IDs and their details
     """
-    if _client is None:
+    if get_shared_client() is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
 
     try:
@@ -321,7 +316,7 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
 @tool(args_schema=_SearchWithScoreArgs) if _SearchWithScoreArgs else tool
 def search_sdmx_with_score(question: str, k: int = 10, score_threshold: float = 0.7) -> str:
     """Search for SDMX IDs with similarity scores."""
-    if _client is None:
+    if get_shared_client() is None:
         return "Error: RAG vector store not initialized. Call initialize_rag_vectorstore first."
 
     try:

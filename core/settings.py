@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # BGE-M3 embedding model (HuggingFace model ID or local path)
     bge_m3_model: str = "BAAI/bge-m3"
 
+    # Device for BGE-M3: "auto" (detect GPU), "cuda", "mps", or "cpu"
+    bge_m3_device: str = "auto"
+
     # Vector store path (Qdrant local, both collections share one directory)
     qdrant_persist_dir: Path = BASE_DIR / "vector" / "qdrant"
 

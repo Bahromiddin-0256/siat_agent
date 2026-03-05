@@ -26,11 +26,12 @@ from qdrant_client.models import (
 from core.settings import settings, BASE_DIR
 from core.logger import setup_logger
 from tools.embedder import encode_dense_sparse, encode_query
+from tools.qdrant_shared_client import get_shared_client
 
 logger = setup_logger(__name__)
 
 _COLLECTION = "sdmx_metadata"
-_metadata_client: QdrantClient | None = None
+_metadata_client: QdrantClient | None = None  # kept for type-hint compat
 
 
 def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict]:
@@ -168,12 +169,7 @@ def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict
 
 
 def _get_metadata_client() -> QdrantClient:
-    global _metadata_client
-    if _metadata_client is None:
-        persist_dir = settings.qdrant_persist_dir
-        persist_dir.mkdir(parents=True, exist_ok=True)
-        _metadata_client = QdrantClient(path=str(persist_dir))
-    return _metadata_client
+    return get_shared_client()
 
 
 def initialize_metadata_vectorstore(

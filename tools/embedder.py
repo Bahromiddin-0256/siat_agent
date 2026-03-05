@@ -11,6 +11,22 @@ _model = None
 _lock = threading.Lock()
 
 
+def _resolve_device() -> str:
+    """Resolve the target device: honour settings, fall back gracefully."""
+    requested = settings.bge_m3_device.lower()
+    if requested != "auto":
+        return requested
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        if torch.backends.mps.is_available():
+            return "mps"
+    except ImportError:
+        pass
+    return "cpu"
+
+
 def get_embedder():
     """Return the shared BGE-M3 model instance (lazy-loaded, thread-safe)."""
     global _model
@@ -18,9 +34,16 @@ def get_embedder():
         with _lock:
             if _model is None:
                 from FlagEmbedding import BGEM3FlagModel
-                logger.info(f"Loading BGE-M3 model: {settings.bge_m3_model}")
-                _model = BGEM3FlagModel(settings.bge_m3_model, use_fp16=True)
-                logger.info("BGE-M3 model loaded successfully")
+                device = _resolve_device()
+                logger.info(
+                    f"Loading BGE-M3 model: {settings.bge_m3_model} on device={device}"
+                )
+                _model = BGEM3FlagModel(
+                    settings.bge_m3_model,
+                    use_fp16=device != "cpu",
+                    device=device,
+                )
+                logger.info(f"BGE-M3 model loaded successfully (device={device})")
     return _model
 
 
