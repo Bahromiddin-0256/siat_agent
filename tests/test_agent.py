@@ -26,7 +26,7 @@ async def test_birth_statistics():
 
     # Create agent
     print("Creating agent...")
-    agent, system_prompt = create_sdmx_agent()
+    agent, system_prompt, _ = create_sdmx_agent()
 
     # Test question
     question = "2013-yil Andijon viloyatida nechta bola tu'gilgan"

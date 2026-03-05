@@ -31,7 +31,6 @@ from tools.qdrant_shared_client import get_shared_client
 logger = setup_logger(__name__)
 
 _COLLECTION = "sdmx_metadata"
-_metadata_client: QdrantClient | None = None  # kept for type-hint compat
 
 
 def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict]:
@@ -246,7 +245,7 @@ def initialize_metadata_vectorstore(
 
 def get_metadata_vectorstore() -> QdrantClient | None:
     """Get the initialized metadata Qdrant client."""
-    return _metadata_client
+    return get_shared_client()
 
 
 def rebuild_metadata_vectorstore(
@@ -306,7 +305,7 @@ def search_sdmx_metadata(question: str, k: int = 10) -> str:
         search_sdmx_metadata("indicators using SOATO classifier")
         Returns: "SDMX IDs: 225, 226, 227, 228, 229"
     """
-    if _metadata_client is None:
+    if get_shared_client() is None:
         return "Error: Metadata vector store not initialized. Call initialize_metadata_vectorstore first."
 
     try:

@@ -17,7 +17,7 @@ from core.agent import create_sdmx_agent, run_agent
 print("="*80)
 print("Creating SDMX agent...")
 print("="*80)
-agent, system_prompt = create_sdmx_agent()
+agent, system_prompt, _ = create_sdmx_agent()
 
 # Test question
 question = "30 yillik iqtisodiy makro-ko'rsatkichlar nechta hisobot bor?"

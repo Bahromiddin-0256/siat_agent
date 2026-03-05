@@ -140,7 +140,7 @@ async def main() -> int:
     initialize_rag_vectorstore(sdmx_tool._json_data)
 
     print("Creating agent...")
-    agent, system_prompt = create_sdmx_agent()
+    agent, system_prompt, _ = create_sdmx_agent()
 
     failures: list[str] = []
 

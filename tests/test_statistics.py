@@ -14,7 +14,7 @@ initialize_rag_vectorstore("jsons/sdmx_data.json")
 
 # Create agent
 print("Creating agent...")
-agent, system_prompt = create_sdmx_agent()
+agent, system_prompt, _ = create_sdmx_agent()
 print(f"Agent created successfully!\n")
 
 # Test cases demonstrating new statistical tools
