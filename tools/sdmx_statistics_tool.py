@@ -12,6 +12,7 @@ from langchain_core.tools import tool
 from core.logger import setup_logger
 from tools.file_utils import load_sdmx_data_file
 from tools.constants import Units
+from tools.chart_utils import push_chart
 
 logger = setup_logger(__name__)
 
@@ -213,6 +214,13 @@ def calculate_statistics(
     for year, value in filtered_data:
         results.append(f"  {year}: {value:,.2f} {unit}")
 
+    push_chart({
+        "chart_type": "line",
+        "title": f"{_name} — {region_name} ({start_year}-{end_year})",
+        "unit": unit,
+        "data": [{"label": str(y), "value": v} for y, v in filtered_data],
+    })
+
     logger.info(f"Calculated statistics for {len(filtered_data)} years")
     return "\n".join(results)
 
@@ -325,6 +333,14 @@ def calculate_cagr(
     _trend = "o'sish" if cagr > 0 else "kamayish"
     results.append(f"Izoh: Yiliga o'rtacha {abs(cagr):.2f}% {_trend}")
 
+    chart_data = [(y, v) for y, v in year_data if start_yr <= y <= end_yr]
+    push_chart({
+        "chart_type": "line",
+        "title": f"{_name} — {region_name} ({start_year}-{end_year})",
+        "unit": unit,
+        "data": [{"label": str(y), "value": v} for y, v in chart_data],
+    })
+
     logger.info(f"Calculated CAGR: {cagr:.2f}%")
     return "\n".join(results)
 
@@ -424,6 +440,13 @@ def compare_regions(
     results.append("-" * 70)
     results.append(f"{'JAMI':<4} {'':30} {total:>15,.2f} {100.0:>9.2f}%")
 
+    push_chart({
+        "chart_type": "bar",
+        "title": f"{_name} — {year}",
+        "unit": unit,
+        "data": [{"label": rd["region"], "value": rd["value"]} for rd in regions_data],
+    })
+
     logger.info(f"Compared {len(regions_data)} regions")
     return "\n".join(results)
 
@@ -514,6 +537,13 @@ def rank_regions(
             f"{idx:<6} {region_data['region']:<35} {region_data['value']:>15,.2f}"
         )
 
+    push_chart({
+        "chart_type": "bar",
+        "title": f"{_name} — {year} (Reyting)",
+        "unit": unit,
+        "data": [{"label": rd["region"], "value": rd["value"]} for rd in regions_data],
+    })
+
     logger.info(f"Ranked {len(regions_data)} regions")
     return "\n".join(results)
 
@@ -601,6 +631,16 @@ def calculate_percentage_share(
 
     results.append("-" * 75)
     results.append(f"{'JAMI':<35} {total:>15,.2f} {100.0:>9.2f}%")
+
+    push_chart({
+        "chart_type": "pie",
+        "title": f"{_name} — {year} (Ulush %)",
+        "unit": "%",
+        "data": [
+            {"label": rd["region"], "value": round(rd["value"] / total * 100, 2) if total > 0 else 0}
+            for rd in regions_data
+        ],
+    })
 
     logger.info(f"Calculated shares for {len(regions_data)} regions")
     return "\n".join(results)
@@ -713,6 +753,16 @@ def compare_years(
     else:
         results.append(f"Xulosa: {year1}-yil va {year2}-yil o'zgarish yo'q")
 
+    push_chart({
+        "chart_type": "comparison_bar",
+        "title": f"{_name} — {region_name}: {year1} vs {year2}",
+        "unit": unit,
+        "data": [
+            {"label": year1, "value": value1},
+            {"label": year2, "value": value2},
+        ],
+    })
+
     logger.info(f"Compared {year1} vs {year2}: {percentage_change:+.2f}%")
     return "\n".join(results)
 
@@ -807,6 +857,13 @@ def calculate_period_total(
     results.append("-" * 50)
     results.append(f"JAMI ({start_year}-{end_year}):  {total:>15,.2f} {unit}")
     results.append(f"O'rtacha yillik:                {average:>15,.2f} {unit}")
+
+    push_chart({
+        "chart_type": "bar",
+        "title": f"{_name} — {region_name} ({start_year}-{end_year})",
+        "unit": unit,
+        "data": [{"label": str(y), "value": v} for y, v in filtered_data],
+    })
 
     logger.info(f"Calculated period total: {total:,.2f}")
     return "\n".join(results)
@@ -917,6 +974,16 @@ def calculate_moving_average(
             results.append(f"{year:<8} {value:>18,.2f} {ma_dict[year]:>18,.2f}")
         else:
             results.append(f"{year:<8} {value:>18,.2f} {'-':>18}")
+
+    push_chart({
+        "chart_type": "dual_line",
+        "title": f"{_name} — {window}-yillik harakatlanuvchi o'rtacha",
+        "unit": unit,
+        "series": [
+            {"name": "Haqiqiy", "data": [{"label": str(y), "value": v} for y, v in year_data]},
+            {"name": "Silliq", "data": [{"label": str(y), "value": round(a, 2)} for y, a in moving_avgs]},
+        ],
+    })
 
     logger.info(f"Calculated {window}-year moving average for {len(year_data)} years")
     return "\n".join(results)

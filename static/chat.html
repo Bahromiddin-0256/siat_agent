@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SDMX ID Retriever Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -417,6 +418,17 @@
         .response-text:empty {
             display: none;
         }
+
+        /* Chart Container */
+        .chart-container {
+            max-width: 580px;
+            margin: 12px 0;
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
     </style>
 </head>
 <body>
@@ -570,6 +582,118 @@
             placeholder.appendChild(toolSection);
         }
 
+        const CHART_COLORS = [
+            '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+            '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
+            '#d37295', '#fabfd2', '#8cd17d'
+        ];
+
+        function renderChart(data) {
+            // Find container: prefer currentBotMessage toolStepsDiv, else last bot message-content
+            let container = null;
+            if (currentBotMessage) {
+                container = currentBotMessage.toolStepsDiv;
+                currentBotMessage.toolStepsDiv.style.display = 'block';
+            } else {
+                const botContents = chatBox.querySelectorAll('.message.bot .message-content');
+                if (botContents.length > 0) {
+                    container = botContents[botContents.length - 1];
+                }
+            }
+            if (!container) return;
+
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            const canvas = document.createElement('canvas');
+            chartDiv.appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            // Map chart_type to Chart.js type
+            let chartType;
+            switch (data.chart_type) {
+                case 'pie': chartType = 'pie'; break;
+                case 'bar':
+                case 'comparison_bar': chartType = 'bar'; break;
+                default: chartType = 'line';
+            }
+
+            let labels, datasets;
+
+            if (data.series && data.series.length > 0) {
+                // Multi-series (dual_line etc.)
+                const allLabels = [];
+                data.series.forEach(s => s.data.forEach(d => {
+                    if (!allLabels.includes(d.label)) allLabels.push(d.label);
+                }));
+                labels = allLabels;
+                datasets = data.series.map((s, i) => {
+                    const color = CHART_COLORS[i % CHART_COLORS.length];
+                    const dataMap = {};
+                    s.data.forEach(d => { dataMap[d.label] = d.value; });
+                    return {
+                        label: s.name,
+                        data: labels.map(l => dataMap[l] ?? null),
+                        backgroundColor: chartType === 'line' ? color + '33' : color + '99',
+                        borderColor: color,
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        spanGaps: true,
+                    };
+                });
+            } else if (data.data && data.data.length > 0) {
+                // Single series
+                labels = data.data.map(d => d.label);
+                const values = data.data.map(d => d.value);
+                const bgColors = chartType === 'pie'
+                    ? CHART_COLORS.slice(0, data.data.length)
+                    : CHART_COLORS[0] + '99';
+                const borderColors = chartType === 'pie'
+                    ? CHART_COLORS.slice(0, data.data.length)
+                    : CHART_COLORS[0];
+                datasets = [{
+                    label: data.unit || '',
+                    data: values,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: chartType === 'pie' ? 1 : 2,
+                    fill: false,
+                    tension: 0.3,
+                }];
+            } else {
+                return; // No data to render
+            }
+
+            new Chart(canvas, {
+                type: chartType,
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: !!(data.title),
+                            text: data.title || '',
+                            font: { size: 13 },
+                        },
+                        legend: {
+                            display: chartType === 'pie' || !!(data.series && data.series.length > 1),
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const raw = ctx.parsed.y ?? ctx.parsed;
+                                    return `${ctx.dataset.label}: ${raw} ${data.unit || ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: chartType !== 'pie' ? {
+                        y: { beginAtZero: false }
+                    } : undefined,
+                }
+            });
+        }
+
         function connectWebSocket() {
             if (!useWebSocket) return;
 
@@ -612,6 +736,10 @@
                             updateToolResult(currentToolStep, message.tool_result);
                             chatBox.scrollTop = chatBox.scrollHeight;
                         }
+
+                    } else if (message.type === 'chart') {
+                        renderChart(message.chart_data);
+                        chatBox.scrollTop = chatBox.scrollHeight;
 
                     } else if (message.type === 'response') {
                         // Add final response text

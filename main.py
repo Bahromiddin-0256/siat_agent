@@ -62,6 +62,7 @@ class MessageType(str, Enum):
     """Message types for streaming responses."""
     TOOL_START = "tool_start"
     TOOL_RESULT = "tool_result"
+    CHART = "chart"
     RESPONSE = "response"
     ERROR = "error"
 

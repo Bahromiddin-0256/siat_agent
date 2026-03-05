@@ -15,6 +15,7 @@ from langgraph.graph.message import add_messages
 
 from .llm import base_llm, _sanitize_tool_call_args
 from .logger import setup_logger
+from tools.chart_utils import pop_charts
 
 logger = setup_logger(__name__)
 from tools import (
@@ -673,6 +674,13 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
                     "tool_result": tool_result,
                     "timestamp": datetime.now().isoformat()
                 }
+
+                for chart in pop_charts():
+                    yield {
+                        "type": "chart",
+                        "chart_data": chart,
+                        "timestamp": datetime.now().isoformat()
+                    }
 
         logger.info(f"Streamed {tool_call_count} tool calls and {tool_result_count} tool results")
 

@@ -12,6 +12,7 @@ from langchain_core.tools import tool
 from core.logger import setup_logger
 from tools.file_utils import load_sdmx_data_file  # noqa: F401 — re-exported for callers
 from tools.constants import Units, Messages
+from tools.chart_utils import push_chart
 
 logger = setup_logger(__name__)
 
@@ -183,9 +184,23 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         result_lines.append(f"O'lchov: {unit}")
         result_lines.append("")
 
+        chart_data = []
         for yr in all_years:
             value = matching_row.get(yr, 'N/A')
             result_lines.append(f"{yr}: {value} {unit}")
+            if value != 'N/A' and value is not None:
+                try:
+                    chart_data.append({"label": yr, "value": float(value)})
+                except (ValueError, TypeError):
+                    pass
+
+        if chart_data:
+            push_chart({
+                "chart_type": "line",
+                "title": f"SDMX ID {sdmx_id}: {region_name}",
+                "unit": unit,
+                "data": chart_data,
+            })
 
         return "\n".join(result_lines)
 
@@ -199,10 +214,24 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         result_lines.append(f"O'lchov: {unit}")
         result_lines.append("")
 
+        chart_data = []
         for row in data_section:
             region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or row.get('Klassifikator_en') or "Ma'lum emas"
             value = row.get(year, 'N/A')
             result_lines.append(f"{region_name}: {value} {unit}")
+            if value != 'N/A' and value is not None:
+                try:
+                    chart_data.append({"label": region_name, "value": float(value)})
+                except (ValueError, TypeError):
+                    pass
+
+        if chart_data:
+            push_chart({
+                "chart_type": "bar",
+                "title": f"SDMX ID {sdmx_id}: {year}-yil",
+                "unit": unit,
+                "data": chart_data,
+            })
 
         return "\n".join(result_lines)
 
@@ -415,6 +444,13 @@ def calculate_yearly_growth(
             results.append(f"{year:<8} {value:<15.1f} {growth_rate:>+11.2f}%")
         else:
             results.append(f"{year:<8} {value:<15.1f} {'N/A':<12}")
+
+    push_chart({
+        "chart_type": "line",
+        "title": f"{_name} — {region_name}",
+        "unit": unit,
+        "data": [{"label": str(y), "value": v} for y, v in year_data],
+    })
 
     logger.info(f"Calculated growth rates for {len(year_data)} years")
     return "\n".join(results)
