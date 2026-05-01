@@ -122,6 +122,33 @@ def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict
             department_uz = get_metadata_value("department", "uz")
             periodicity_uz = get_metadata_value("periodicity", "uz")
 
+            # Person-level metadata: previously not indexed, leading the agent
+            # to guess responsibility from topic alone (and hallucinate).
+            # The official Uzbek field names use the Cyrillic-Latin apostrophe
+            # ʻ; FlagEmbedding handles them, but we look in the *English*
+            # field-name layer below for stability.
+            def find_by_uz_field(uz_substring: str) -> str:
+                """Lookup metadata where Uzbek field name contains the substring.
+
+                Some fields lack an English label, so we fall back to the Uzbek
+                name. Substring is matched case-insensitively after lowercasing.
+                """
+                target = uz_substring.lower()
+                for item in metadata_array:
+                    name_uz_field = (item.get("name_uz") or "").lower()
+                    if target in name_uz_field:
+                        return item.get("value_uz", "") or ""
+                return ""
+
+            responsible_person = find_by_uz_field("mas'ul hodim") or find_by_uz_field("mas`ul hodim")
+            responsible_dept = (
+                find_by_uz_field("mas'ul boshqarma")
+                or find_by_uz_field("mas`ul boshqarma")
+                or department_uz
+            )
+            phone = find_by_uz_field("telefon")
+            email = find_by_uz_field("elektron pochta") or find_by_uz_field("e-mail")
+
             content_parts = []
 
             if dataset_name_uz or dataset_name_ru or dataset_name_en:
@@ -149,6 +176,15 @@ def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict
             if source_uz or source_ru or source_en:
                 content_parts.append(f"Source: {source_uz} / {source_ru} / {source_en}")
 
+            # Person + contact info — embedded so semantic search can find
+            # indicators by the responsible person's name (or partial name).
+            if responsible_person or responsible_dept:
+                content_parts.append(
+                    f"Responsible: {responsible_person} | Department: {responsible_dept}"
+                )
+            if phone or email:
+                content_parts.append(f"Contact: {phone} {email}".strip())
+
             records.append(
                 {
                     "text": "\n\n".join(content_parts),
@@ -173,6 +209,10 @@ def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict
                         "unit_uz": unit_uz,
                         "department_uz": department_uz,
                         "periodicity_uz": periodicity_uz,
+                        "responsible_person": responsible_person,
+                        "responsible_department": responsible_dept,
+                        "phone": phone,
+                        "email": email,
                     },
                 }
             )
@@ -207,11 +247,31 @@ def initialize_metadata_vectorstore(
     try:
         info = client.get_collection(_COLLECTION)
         if info.points_count > 0:
-            logger.info(
-                f"Loaded existing Qdrant collection '{_COLLECTION}' "
-                f"({info.points_count} points)"
-            )
-            return client
+            # Schema check: a stale collection from before responsible-person
+            # indexing was added has none of the new payload keys. Sample one
+            # point and force a rebuild if the key is missing.
+            try:
+                sample = client.scroll(
+                    collection_name=_COLLECTION, limit=1, with_payload=True
+                )[0]
+                first_payload = sample[0].payload if sample else {}
+                if "responsible_person" not in first_payload:
+                    logger.info(
+                        f"Collection '{_COLLECTION}' is missing responsible_person "
+                        f"field — rebuilding to pick up new metadata schema."
+                    )
+                    raise ValueError("schema upgrade needed")
+            except ValueError:
+                # Fall through to rebuild branch
+                pass
+            else:
+                logger.info(
+                    f"Loaded existing Qdrant collection '{_COLLECTION}' "
+                    f"({info.points_count} points)"
+                )
+                return client
+    except ValueError:
+        pass
     except Exception:
         pass
 
