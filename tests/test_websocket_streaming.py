@@ -5,9 +5,12 @@ import asyncio
 import json
 import websockets
 
+from core.settings import settings
+
+
 async def test_websocket_streaming():
     """Test WebSocket with a query that should trigger tool usage."""
-    uri = "ws://localhost:8000/ws"
+    uri = f"ws://localhost:{settings.port}/ws"
 
     # Test queries
     test_queries = [

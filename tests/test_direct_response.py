@@ -5,9 +5,12 @@ import asyncio
 import json
 import websockets
 
+from core.settings import settings
+
+
 async def test_direct_response():
     """Test with queries that might not trigger tools."""
-    uri = "ws://localhost:8000/ws"
+    uri = f"ws://localhost:{settings.port}/ws"
 
     test_queries = [
         "Salom",  # Simple greeting

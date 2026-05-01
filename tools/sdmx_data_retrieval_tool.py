@@ -66,6 +66,49 @@ def _matching_periods(all_periods: list[str], requested: str) -> list[str]:
     return [p for p in all_periods if p == requested or p.startswith(f"{requested}-")]
 
 
+# LLMs tend to use dictionary forms ("Toshkent shahar"), but the data uses the
+# Uzbek possessive form ("Toshkent shahri"). Map common dictionary→data forms.
+_REGION_TYPE_MAP = {
+    "shahar": "shahri",
+    "shahri": "shahri",
+    "sh.": "shahri",
+    "viloyat": "viloyati",
+    "viloyati": "viloyati",
+    "tuman": "tumani",
+    "tumani": "tumani",
+    "respublika": "respublikasi",
+    "respublikasi": "respublikasi",
+}
+
+
+def _normalize_region_tokens(query: str) -> list[str]:
+    """Lowercase, split, and map dictionary forms to data forms."""
+    return [_REGION_TYPE_MAP.get(t, t) for t in query.lower().split() if t]
+
+
+def _row_search_blob(row: dict) -> str:
+    """Concatenate all classifier name variants for substring/token matching."""
+    return " ".join(
+        str(row.get(k, ""))
+        for k in ("Klassifikator", "Klassifikator_ru", "Klassifikator_en", "Klassifikator_uzc")
+    ).lower()
+
+
+def _row_matches_region(row: dict, query: str) -> bool:
+    """True if every normalized token of `query` appears in the row's name blob.
+
+    This handles three real-world quirks:
+      1. Dictionary vs data forms ("shahar" → "shahri", "viloyat" → "viloyati").
+      2. Cross-language matches (query in EN/RU/UZC works against any variant).
+      3. Multi-word queries (all tokens must be present, AND-style).
+    """
+    blob = _row_search_blob(row)
+    tokens = _normalize_region_tokens(query)
+    if not tokens:
+        return False
+    return all(t in blob for t in tokens)
+
+
 def extract_value_from_data(
     data: list[dict],
     year: str,
@@ -100,18 +143,7 @@ def extract_value_from_data(
         if region_code and row.get('Code') == region_code:
             region_match = True
         elif region:
-            # Search in all classifier name variants
-            region_lower = region.lower()
-            klassifikator = str(row.get('Klassifikator', '')).lower()
-            klassifikator_ru = str(row.get('Klassifikator_ru', '')).lower()
-            klassifikator_en = str(row.get('Klassifikator_en', '')).lower()
-            klassifikator_uzc = str(row.get('Klassifikator_uzc', '')).lower()
-
-            if (region_lower in klassifikator or
-                region_lower in klassifikator_ru or
-                region_lower in klassifikator_en or
-                region_lower in klassifikator_uzc):
-                region_match = True
+            region_match = _row_matches_region(row, region)
         else:
             # If no region specified, match first row (usually total)
             region_match = True
@@ -242,23 +274,10 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
 
     # Case 2: year is None, but region is specified - return all years for that region
     if year is None and region is not None:
-        # Find the matching region row
-        matching_row = None
-        region_lower = region.lower()
-
-        for row in data_section:
-            klassifikator = str(row.get('Klassifikator', '')).lower()
-            klassifikator_ru = str(row.get('Klassifikator_ru', '')).lower()
-            klassifikator_en = str(row.get('Klassifikator_en', '')).lower()
-            klassifikator_uzc = str(row.get('Klassifikator_uzc', '')).lower()
-
-            if (region_lower in klassifikator or
-                region_lower in klassifikator_ru or
-                region_lower in klassifikator_en or
-                region_lower in klassifikator_uzc):
-                matching_row = row
-                break
-
+        matching_row = next(
+            (row for row in data_section if _row_matches_region(row, region)),
+            None,
+        )
         if not matching_row:
             return f"Mintaqa topilmadi: '{region}' uchun SDMX ID {sdmx_id}"
 
@@ -395,6 +414,113 @@ def get_sdmx_metadata(sdmx_id: int) -> str:
 
 
 @tool
+def inspect_sdmx_data(sdmx_id: int) -> str:
+    """
+    Inspect the structure of an SDMX dataset before extracting values.
+
+    Returns the indicator name, unit, periodicity, available periods, and the
+    list of rows (regions or categories) that exist in the data file. Use this
+    when you don't yet know which region/category names or which periods are
+    available, instead of guessing parameters for `get_sdmx_value`.
+
+    The output is compact: long region lists (e.g. 200+ districts) are sampled.
+
+    Args:
+        sdmx_id: The SDMX identifier (e.g., 248, 4530)
+
+    Returns:
+        A formatted summary: indicator metadata + available periods + row labels.
+
+    Examples:
+        inspect_sdmx_data(4530)  → quarterly mortality dataset, 7 disease categories
+        inspect_sdmx_data(248)   → urban population, 221 region/district rows
+    """
+    data = load_sdmx_data_file(sdmx_id)
+    if data is None:
+        return f"Error: SDMX data file for ID {sdmx_id} not found"
+    if not isinstance(data, list) or len(data) == 0:
+        return f"Error: Invalid data format in SDMX file {sdmx_id}"
+
+    metadata = data[0].get("metadata", [])
+    data_section = data[0].get("data", [])
+
+    # Pull the same metadata fields as get_sdmx_metadata
+    info: dict[str, str] = {}
+    for item in metadata:
+        name_en = (item.get("name_en") or "").lower()
+        value_uz = item.get("value_uz", "")
+        if "indicator name" in name_en or "dataset name" in name_en:
+            info["name"] = value_uz
+        elif "periodicity" in name_en:
+            info["period"] = value_uz
+        elif "unit of measurement" in name_en:
+            info["unit"] = value_uz
+
+    # Available periods (sorted chronologically)
+    period_keys: list[str] = []
+    if data_section:
+        period_keys = sorted(
+            [k for k in data_section[0].keys() if _is_period_key(k)],
+            key=_period_sort_key,
+        )
+
+    # Row labels (regions or categories). Cap the listing for big datasets.
+    row_count = len(data_section)
+    MAX_ROWS_SHOWN = 12
+    label_lines: list[str] = []
+    rows_to_show = (
+        data_section
+        if row_count <= MAX_ROWS_SHOWN
+        else data_section[:8] + data_section[-2:]
+    )
+    for i, row in enumerate(rows_to_show):
+        code = row.get("Code", "")
+        name = (
+            row.get("Klassifikator")
+            or row.get("Klassifikator_ru")
+            or row.get("Klassifikator_en")
+            or "?"
+        )
+        prefix = f"  [{code}]" if code else "  -"
+        label_lines.append(f"{prefix} {name}")
+        # Mark the gap when we elided the middle of a long list.
+        if row_count > MAX_ROWS_SHOWN and i == 7:
+            label_lines.append(f"  ... ({row_count - MAX_ROWS_SHOWN} more rows omitted) ...")
+
+    out: list[str] = [f"SDMX ID {sdmx_id}"]
+    if "name" in info:
+        out.append(f"Ko'rsatkich: {info['name']}")
+    if "unit" in info:
+        out.append(f"O'lchov: {info['unit']}")
+    if "period" in info:
+        out.append(f"Davriylik: {info['period']}")
+
+    out.append("")
+    if period_keys:
+        first, last = period_keys[0], period_keys[-1]
+        if len(period_keys) <= 8:
+            out.append(f"Mavjud davrlar ({len(period_keys)}): {', '.join(period_keys)}")
+        else:
+            out.append(
+                f"Mavjud davrlar ({len(period_keys)}): {first} … {last}"
+                f" (masalan: {', '.join(period_keys[:3])}, ..., {', '.join(period_keys[-2:])})"
+            )
+    else:
+        out.append("Mavjud davrlar: yo'q")
+
+    out.append("")
+    out.append(f"Qatorlar ({row_count}):")
+    out.extend(label_lines)
+
+    out.append("")
+    out.append(
+        "Keyingi qadam: aniq qiymat uchun `get_sdmx_value(sdmx_id, year=<davr>, region=<qator nomi>)`"
+        " yoki o'sish uchun `calculate_yearly_growth(...)` ni shu nom va davrlardan foydalanib chaqiring."
+    )
+    return "\n".join(out)
+
+
+@tool
 def calculate_yearly_growth(
     sdmx_id: int,
     start_year: Optional[str] = None,
@@ -454,15 +580,7 @@ def calculate_yearly_growth(
             continue
 
         if region:
-            # Search for specific region
-            region_lower = region.lower()
-            klassifikator = str(row.get('Klassifikator', '')).lower()
-            klassifikator_ru = str(row.get('Klassifikator_ru', '')).lower()
-            klassifikator_en = str(row.get('Klassifikator_en', '')).lower()
-
-            if (region_lower in klassifikator or
-                region_lower in klassifikator_ru or
-                region_lower in klassifikator_en):
+            if _row_matches_region(row, region):
                 target_row = row
                 region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or region
                 break

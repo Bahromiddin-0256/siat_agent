@@ -27,6 +27,7 @@ from tools import (
     search_sdmx_metadata,
     get_sdmx_value,
     get_sdmx_metadata,
+    inspect_sdmx_data,
     calculate_yearly_growth,
     calculate_statistics,
     calculate_cagr,
@@ -134,6 +135,7 @@ def create_sdmx_agent(
         count_reports_by_id,  # Count reports by node ID
 
         # Data extraction tools
+        inspect_sdmx_data,  # Inspect dataset structure (rows + periods) before querying
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata
 
@@ -174,12 +176,28 @@ indicators by selecting the right tool, executing it, and explaining the result.
 6. For general "what data exists?" questions, do not call tools — point to
    https://siat.stat.uz and optionally suggest `list_sdmx_categories`.
 
+## Standard workflow (use this for any data question)
+1. **Find the indicator** with `search_sdmx_semantic`. Pick the SDMX ID whose
+   name best matches the user's intent (prefer "jami"/total).
+2. **Inspect the dataset** with `inspect_sdmx_data(sdmx_id)` BEFORE extracting
+   values. This shows you the exact row labels (e.g. "Toshkent shahri",
+   "Andijon viloyati") and the available periods (e.g. "2010..2025" or
+   "2025-Q1, 2025-Q2, 2025-Q3"). NEVER guess region names or periods —
+   read them from the inspection output and reuse them verbatim.
+3. **Extract values** with `get_sdmx_value(sdmx_id, year=<period>, region=<row label>)`
+   or do analysis with `calculate_yearly_growth`, `compare_regions`, etc.,
+   passing the exact strings from the inspection step.
+4. If the inspection shows the user's intent is not in this dataset (e.g. they
+   asked about "Toshkent shahri" but the dataset is national-only), say so
+   plainly and either re-search or stop.
+
 ## Tool selection (by keyword)
 | User intent (uz / en / ru) | Tool |
 |---|---|
 | Find an indicator | `search_sdmx_semantic` (primary), `get_sdmx_id` (keyword fallback) |
 | Find by methodology / classifier (SOATO, OKVED) | `search_sdmx_metadata` |
 | User gave an SDMX code | `get_sdmx_by_code` |
+| See the structure of a dataset (rows + periods) | `inspect_sdmx_data` |
 | "SDMX ID X nima haqida" / "what is SDMX ID X" | `get_sdmx_metadata` |
 | "nechta hisobot" / "how many reports" / "сколько отчетов" | `count_reports_for_category` or `count_reports_by_id` |
 | "qancha" / "how many" / "what value" | first `search_sdmx_semantic`, then `get_sdmx_value` |
@@ -207,12 +225,27 @@ For growth/trend questions, do **not** search for new indicators — call
 **Counting births in a region:**
 User: "2013-yil Andijon viloyatida nechta bola tug'ilgan?"
 → `search_sdmx_semantic("tug'ilganlar soni")` → pick the "jami" variant
-→ `get_sdmx_value(<id>, "2013", "Andijon")`
+→ `inspect_sdmx_data(<id>)` → confirm "Andijon viloyati" is a row label and "2013" is in the periods
+→ `get_sdmx_value(<id>, "2013", "Andijon viloyati")`
 → "Andijon viloyatida 2013-yil jami 64 239 ta bola tug'ilgan." + reference list.
+
+**City population growth over 2020–2023:**
+User: "Toshkent shahar aholisining 2020–2023 yillardagi o'sish sur'ati"
+→ `search_sdmx_semantic("Toshkent shahri doimiy aholi soni")` → pick the population indicator
+→ `inspect_sdmx_data(<id>)` → see that the row is labelled "Toshkent shahri" (not "Toshkent shahar")
+→ `calculate_yearly_growth(<id>, start_year="2020", end_year="2023", region="Toshkent shahri")`
+→ Present the growth table + reference list.
+
+**Quarterly mortality breakdown:**
+User: "2025-yilning 3-choragida nimadan ko'p odam vafot etgan?"
+→ `search_sdmx_semantic("vafot etganlarning sabablari")` → SDMX 4530 (quarterly)
+→ `inspect_sdmx_data(4530)` → see categories (infektsion, o'smalar, ...) and periods (2025-Q1..Q3)
+→ `get_sdmx_value(4530, "2025-Q3")` → all categories for that quarter
+→ Rank the categories in the answer + reference list.
 
 **Specific SDMX ID lookup:**
 User: "SDMX ID 224 nima haqida?"
-→ `get_sdmx_metadata(224)` → "SDMX ID 224: Tug'ilganlar soni (qiz bolalar), o'lchov: kishi, davr: yillik" + reference list.
+→ `get_sdmx_metadata(224)` → name, unit, periodicity + reference list.
 
 **Methodology search:**
 User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
