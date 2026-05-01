@@ -4,10 +4,11 @@
 import asyncio
 import json
 import websockets
+from core.settings import settings
 
 async def test_complex_query():
     """Test with a query that requires semantic search + data fetching + calculation."""
-    uri = "ws://localhost:8000/ws"
+    uri = f"ws://localhost:{settings.port}/ws"
 
     # This query should trigger:
     # 1. search_sdmx_semantic to find population indicator

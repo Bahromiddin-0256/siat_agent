@@ -80,7 +80,7 @@ logger.info(f"Initializing LLM provider: {settings.llm_provider}")
 
 # Low temperature: this agent reports statistical numbers — determinism matters
 # more than creativity.
-_TEMPERATURE = 0.1
+_TEMPERATURE = 0.4
 
 if settings.llm_provider == "groq":
     groq_kwargs = {

@@ -5,6 +5,7 @@ This tool reads local SDMX data files and extracts specific values
 based on SDMX ID, year, and region/classifier to minimize LLM context.
 """
 
+import re
 from pathlib import Path
 from typing import Optional, List
 
@@ -15,6 +16,54 @@ from tools.constants import Units, Messages
 from tools.chart_utils import push_chart
 
 logger = setup_logger(__name__)
+
+# Period column keys come in several shapes:
+#   "2013"           — yearly
+#   "2025-Q1"        — quarterly
+#   "2025-M01"       — monthly (FlagEmbedding-style)
+#   "2025-01"        — monthly (ISO-style)
+# Anything matching this pattern is treated as a data period.
+_PERIOD_RE = re.compile(r"^\d{4}(-(Q[1-4]|M\d{1,2}|\d{1,2}))?$")
+
+# Non-period fields that appear alongside period columns in each data row.
+_NON_PERIOD_KEYS = {
+    "Code",
+    "Klassifikator",
+    "Klassifikator_ru",
+    "Klassifikator_en",
+    "Klassifikator_uzc",
+}
+
+
+def _is_period_key(key: str) -> bool:
+    """True if `key` looks like a data period column (year/quarter/month)."""
+    return isinstance(key, str) and bool(_PERIOD_RE.match(key))
+
+
+def _period_sort_key(period: str) -> tuple[int, int]:
+    """Sort key for period strings: (year, sub-period). Q1<Q2<...; M01<M02<..."""
+    m = re.match(r"^(\d{4})(?:-(Q([1-4])|M(\d{1,2})|(\d{1,2})))?$", period)
+    if not m:
+        return (0, 0)
+    year = int(m.group(1))
+    if m.group(3):  # Qn
+        return (year, int(m.group(3)))
+    if m.group(4):  # Mnn
+        return (year, int(m.group(4)))
+    if m.group(5):  # nn
+        return (year, int(m.group(5)))
+    return (year, 0)
+
+
+def _matching_periods(all_periods: list[str], requested: str) -> list[str]:
+    """Return periods matching a user-supplied year/period string.
+
+    - Exact match (e.g. "2025-Q1") wins if present.
+    - Otherwise prefix match on the year (e.g. "2025" → ["2025-Q1", "2025-Q2", ...]).
+    """
+    if requested in all_periods:
+        return [requested]
+    return [p for p in all_periods if p == requested or p.startswith(f"{requested}-")]
 
 
 def extract_value_from_data(
@@ -67,14 +116,26 @@ def extract_value_from_data(
             # If no region specified, match first row (usually total)
             region_match = True
 
-        if region_match and year in row:
+        if region_match:
+            # Try exact key first, then year-prefix (e.g. "2025" → "2025-Q1").
+            if year in row:
+                matched_key = year
+            else:
+                period_keys = [k for k in row.keys() if _is_period_key(k)]
+                candidates = _matching_periods(period_keys, year)
+                if not candidates:
+                    continue
+                # If the user gave a bare year and data is sub-annual, return
+                # the first matching period; aggregation is the caller's job.
+                matched_key = sorted(candidates, key=_period_sort_key)[0]
+
             return {
                 'code': row.get('Code'),
                 'region_uz': row.get('Klassifikator'),
                 'region_ru': row.get('Klassifikator_ru'),
                 'region_en': row.get('Klassifikator_en'),
-                'year': year,
-                'value': row.get(year)
+                'year': matched_key,
+                'value': row.get(matched_key),
             }
 
     return None
@@ -89,27 +150,32 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
     This tool reads local data files and extracts values based on the parameters provided.
 
     Args:
-        sdmx_id: The SDMX identifier (e.g., 223 for birth statistics)
-        year: Optional year as string (e.g., "2013", "2020")
-              - If None: returns all years for the specified region (or first region if region also None)
-        region: Optional region name in any language (e.g., "Andijon", "Андижан", "Andijan")
-                - If None: returns all regions for the specified year (or first row if year also None)
+        sdmx_id: The SDMX identifier (e.g., 223 for birth statistics).
+        year: Optional period as a string. Accepts:
+              - bare year:    "2013", "2020"
+              - quarter:      "2025-Q1"
+              - month:        "2025-M03" or "2025-03"
+              A bare year against quarterly/monthly data matches all sub-periods
+              of that year. If None, behaviour depends on `region` (see below).
+        region: Optional region or category name in any language
+                ("Andijon", "Андижан", "Andijan", "infek..."). If None,
+                behaviour depends on `year` (see below).
 
     Returns:
-        A formatted string with the extracted value(s), unit, and context
+        A formatted string with the extracted value(s), unit, and context.
+
+    Behaviour matrix:
+        year=set,    region=set    → single value for that region+period
+        year=set,    region=None   → all rows (regions/categories) for that period
+        year=None,   region=set    → all periods for that region
+        year=None,   region=None   → snapshot of all rows for the LATEST period
+                                     (use this to discover what's in a dataset)
 
     Examples:
-        get_sdmx_value(sdmx_id=223, year="2013", region="Andijon")
-        Returns: "Andijon viloyati 2013-yilda 64239.0 kishi"
-
-        get_sdmx_value(sdmx_id=223, year="2013", region=None)
-        Returns: All regions for 2013
-
-        get_sdmx_value(sdmx_id=223, year=None, region="Andijon")
-        Returns: Andijon data for all available years
-
-        get_sdmx_value(sdmx_id=223, year=None, region=None)
-        Returns: First row with all years
+        get_sdmx_value(223, "2013", "Andijon")  → "Andijon ... 2013: 64239.0 kishi"
+        get_sdmx_value(4530, "2025-Q3")         → all categories for 2025-Q3
+        get_sdmx_value(4530, "2025")            → all categories × Q1..Q4 of 2025
+        get_sdmx_value(4530)                    → all categories for the latest quarter
     """
     # Load the data file
     data = load_sdmx_data_file(sdmx_id)
@@ -135,25 +201,43 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
             unit = item.get('value_uz', 'kishi')
             break
 
-    # Get all year columns
-    all_years = []
+    # Collect all period columns (yearly, quarterly, or monthly).
+    all_years: list[str] = []
     if data_section and len(data_section) > 0:
         first_row = data_section[0]
-        all_years = sorted([k for k in first_row.keys() if k.isdigit()])
+        all_years = sorted(
+            [k for k in first_row.keys() if _is_period_key(k)],
+            key=_period_sort_key,
+        )
 
-    # Case 1: Both year and region are None - return first row with all years
+    # Case 1: Both year and region are None.
+    # Return an overview of ALL rows (regions/categories) for the LATEST period.
+    # This gives a useful snapshot regardless of whether row 0 happens to be
+    # "national total" or just the first category in a breakdown.
     if year is None and region is None:
-        first_row = data_section[0]
-        region_name = first_row.get('Klassifikator') or first_row.get('Klassifikator_ru') or first_row.get('Klassifikator_en') or "Ma'lum emas"
+        if not all_years:
+            return f"SDMX ID {sdmx_id}: davr ustunlari topilmadi"
 
-        result_lines = [f"SDMX ID {sdmx_id}: {region_name}"]
+        latest = all_years[-1]
+        result_lines = [f"SDMX ID {sdmx_id} — {latest} (eng so'nggi davr)"]
         result_lines.append(f"O'lchov: {unit}")
         result_lines.append("")
 
-        for yr in all_years:
-            value = first_row.get(yr, 'N/A')
-            result_lines.append(f"{yr}: {value} {unit}")
+        for row in data_section:
+            row_name = (
+                row.get('Klassifikator')
+                or row.get('Klassifikator_ru')
+                or row.get('Klassifikator_en')
+                or "Ma'lum emas"
+            )
+            value = row.get(latest, 'N/A')
+            result_lines.append(f"{row_name}: {value} {unit}")
 
+        if len(all_years) > 1:
+            result_lines.append("")
+            result_lines.append(
+                f"Boshqa davrlar uchun `year` bering. Mavjud: {', '.join(all_years)}"
+            )
         return "\n".join(result_lines)
 
     # Case 2: year is None, but region is specified - return all years for that region
@@ -204,31 +288,41 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
 
         return "\n".join(result_lines)
 
-    # Case 3: region is None, but year is specified - return all regions for that year
+    # Case 3: region is None, but year/period is specified - return all regions for that period(s)
     if year is not None and region is None:
-        if year not in all_years:
+        matched_periods = _matching_periods(all_years, year)
+        if not matched_periods:
             years_str = ', '.join(all_years) if all_years else "noma'lum"
-            return f"Yil topilmadi: '{year}'. Mavjud yillar: {years_str}"
+            return f"Davr topilmadi: '{year}'. Mavjud davrlar: {years_str}"
 
-        result_lines = [f"SDMX ID {sdmx_id}: {year}-yil"]
+        result_lines = [f"SDMX ID {sdmx_id}: {', '.join(matched_periods)}"]
         result_lines.append(f"O'lchov: {unit}")
         result_lines.append("")
 
         chart_data = []
         for row in data_section:
             region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or row.get('Klassifikator_en') or "Ma'lum emas"
-            value = row.get(year, 'N/A')
-            result_lines.append(f"{region_name}: {value} {unit}")
-            if value != 'N/A' and value is not None:
-                try:
-                    chart_data.append({"label": region_name, "value": float(value)})
-                except (ValueError, TypeError):
-                    pass
+            if len(matched_periods) == 1:
+                # Single period: one row per region
+                period = matched_periods[0]
+                value = row.get(period, 'N/A')
+                result_lines.append(f"{region_name}: {value} {unit}")
+                if value != 'N/A' and value is not None:
+                    try:
+                        chart_data.append({"label": region_name, "value": float(value)})
+                    except (ValueError, TypeError):
+                        pass
+            else:
+                # Year prefix matched multiple sub-periods (e.g. quarters): show each
+                result_lines.append(f"{region_name}:")
+                for period in matched_periods:
+                    value = row.get(period, 'N/A')
+                    result_lines.append(f"  {period}: {value} {unit}")
 
         if chart_data:
             push_chart({
                 "chart_type": "bar",
-                "title": f"SDMX ID {sdmx_id}: {year}-yil",
+                "title": f"SDMX ID {sdmx_id}: {matched_periods[0]}",
                 "unit": unit,
                 "data": chart_data,
             })
@@ -240,14 +334,13 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
 
     if result is None:
         years_str = ', '.join(all_years) if all_years else "noma'lum"
-        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, yil '{year}', mintaqa '{region}'. Mavjud yillar: {years_str}"
+        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, davr '{year}', mintaqa '{region}'. Mavjud davrlar: {years_str}"
 
-    # Format minimal response with unit
     region_name = result['region_uz'] or result['region_ru'] or result['region_en'] or "Ma'lum emas"
+    matched_period = result['year']  # may differ from `year` if user gave a year prefix
     value = result['value']
 
-    # Return minimal context to LLM with proper unit
-    return f"{region_name} {year}-yilda {value} {unit}"
+    return f"{region_name} {matched_period}: {value} {unit}"
 
 
 @tool
@@ -382,75 +475,75 @@ def calculate_yearly_growth(
     if target_row is None:
         return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}" + (f", mintaqa '{region}'" if region else "")
 
-    # Extract all available years and values
-    year_data = []
+    # Extract all available periods and values. Periods may be yearly ("2025"),
+    # quarterly ("2025-Q1") or monthly ("2025-M03"); we sort them chronologically.
+    period_data: list[tuple[str, float]] = []
     for key, value in target_row.items():
-        if key.isdigit() and value is not None:
+        if _is_period_key(key) and value is not None:
             try:
-                year_data.append((int(key), float(value)))
+                period_data.append((key, float(value)))
             except (ValueError, TypeError):
                 continue
 
-    # Sort by year
-    year_data.sort()
+    period_data.sort(key=lambda p: _period_sort_key(p[0]))
 
-    if len(year_data) < 2:
-        return f"Kamida 2 yillik ma'lumot kerak o'sish foizini hisoblash uchun. Mavjud: {len(year_data)} yil"
+    if len(period_data) < 2:
+        return f"Kamida 2 davrlik ma'lumot kerak o'sish foizini hisoblash uchun. Mavjud: {len(period_data)} davr"
 
-    # Filter by start_year and end_year if specified
+    # Filter by start/end. Accept either a bare year ("2020") which becomes a
+    # prefix filter, or a full period spec ("2025-Q1") for exact bounds.
+    def _bound_year(spec: str) -> int | None:
+        m = re.match(r"^(\d{4})", spec)
+        return int(m.group(1)) if m else None
+
     if start_year:
-        try:
-            start_yr = int(start_year)
-            year_data = [(y, v) for y, v in year_data if y >= start_yr]
-        except ValueError:
-            pass
-
+        sy = _bound_year(start_year)
+        if sy is not None:
+            period_data = [(p, v) for p, v in period_data if _period_sort_key(p)[0] >= sy]
     if end_year:
-        try:
-            end_yr = int(end_year)
-            year_data = [(y, v) for y, v in year_data if y <= end_yr]
-        except ValueError:
-            pass
+        ey = _bound_year(end_year)
+        if ey is not None:
+            period_data = [(p, v) for p, v in period_data if _period_sort_key(p)[0] <= ey]
 
-    if len(year_data) < 2:
-        return f"Tanlangan davr uchun kamida 2 yillik ma'lumot kerak. Mavjud yillar: {start_year}-{end_year}"
+    if len(period_data) < 2:
+        return f"Tanlangan davr uchun kamida 2 ta nuqta kerak. Filtr: {start_year}–{end_year}"
 
-    # Calculate year-over-year growth rates
+    # Decide the column header based on period granularity
+    is_subannual = any("-" in p for p, _ in period_data)
+    period_header = "Davr" if is_subannual else "Yil"
+    growth_header = "O'sish %" if not is_subannual else "Davr-o'sish %"
+
     results = []
     _name = indicator_name or "Ko'rsatkich"
     results.append(f"SDMX ID {sdmx_id}: {_name}")
     results.append(f"Mintaqa: {region_name}")
     results.append(f"O'lchov birligi: {unit}")
     results.append("")
-    results.append("Yillik o'sish foizlari:")
+    results.append(f"{'Yillik' if not is_subannual else 'Davriy'} o'sish foizlari:")
     results.append("")
 
-    # Header
-    _header = "{:<8} {:<15} {:<12}".format("Yil", "Qiymat", "O'sish %")
+    _header = "{:<10} {:<15} {:<14}".format(period_header, "Qiymat", growth_header)
     results.append(_header)
-    results.append("-" * 40)
+    results.append("-" * 42)
 
-    # First year (no growth to calculate)
-    first_year, first_value = year_data[0]
-    results.append(f"{first_year:<8} {first_value:<15.1f} {'-':<12}")
+    first_period, first_value = period_data[0]
+    results.append(f"{first_period:<10} {first_value:<15.1f} {'-':<14}")
 
-    # Subsequent years with growth rates
-    for i in range(1, len(year_data)):
-        year, value = year_data[i]
-        prev_year, prev_value = year_data[i-1]
-
+    for i in range(1, len(period_data)):
+        period, value = period_data[i]
+        _, prev_value = period_data[i - 1]
         if prev_value != 0:
             growth_rate = ((value - prev_value) / prev_value) * 100
-            results.append(f"{year:<8} {value:<15.1f} {growth_rate:>+11.2f}%")
+            results.append(f"{period:<10} {value:<15.1f} {growth_rate:>+13.2f}%")
         else:
-            results.append(f"{year:<8} {value:<15.1f} {'N/A':<12}")
+            results.append(f"{period:<10} {value:<15.1f} {'N/A':<14}")
 
     push_chart({
         "chart_type": "line",
         "title": f"{_name} — {region_name}",
         "unit": unit,
-        "data": [{"label": str(y), "value": v} for y, v in year_data],
+        "data": [{"label": p, "value": v} for p, v in period_data],
     })
 
-    logger.info(f"Calculated growth rates for {len(year_data)} years")
+    logger.info(f"Calculated growth rates for {len(period_data)} periods")
     return "\n".join(results)
