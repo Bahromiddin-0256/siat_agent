@@ -7,6 +7,7 @@ with both REST API and WebSocket support for real-time streaming.
 
 import asyncio
 import time
+import uuid
 from collections import deque
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -370,8 +371,14 @@ async def chat(message: ChatMessage):
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
+        # Each /chat request is independent — give it its own thread id so
+        # concurrent users never share checkpointer state.
         response = await run_agent_async(
-            _state.agent, message.message, _state.system_prompt, _state.tools_map
+            _state.agent,
+            message.message,
+            _state.system_prompt,
+            _state.tools_map,
+            thread_id=f"chat-{uuid.uuid4()}",
         )
         logger.info("Chat response generated successfully")
         return ChatResponse(response=response)
@@ -390,7 +397,10 @@ async def websocket_endpoint(websocket: WebSocket):
     Enforces per-connection rate limiting and message size limits.
     """
     await manager.connect(websocket)
-    logger.info("WebSocket client connected")
+    # Stable per-connection thread id — keeps follow-ups in the same conversation
+    # but isolates this socket from every other client.
+    ws_thread_id = f"ws-{uuid.uuid4()}"
+    logger.info("WebSocket client connected (thread_id=%s)", ws_thread_id)
 
     try:
         while True:
@@ -425,7 +435,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                 else:
                     async for message in run_agent_async_stream(
-                        _state.agent, data, _state.system_prompt, _state.tools_map
+                        _state.agent,
+                        data,
+                        _state.system_prompt,
+                        _state.tools_map,
+                        thread_id=ws_thread_id,
                     ):
                         try:
                             json_message = json.dumps(
@@ -478,21 +492,34 @@ async def health_check():
         "json_data": bool(sdmx_tool._json_data),
     }
 
-    # Non-blocking connectivity probe for Ollama (500 ms timeout)
-    ollama_ok = False
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=0.5) as client:
-            resp = await client.get(f"{settings.ollama_base_url}/api/tags")
-            ollama_ok = resp.status_code == 200
-    except Exception:
-        pass
-    checks["ollama"] = ollama_ok
+    # Only probe the LLM provider that's actually configured.
+    if settings.llm_provider == "ollama":
+        ollama_ok = False
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=0.5) as client:
+                resp = await client.get(f"{settings.ollama_base_url}/api/tags")
+                ollama_ok = resp.status_code == 200
+        except Exception:
+            pass
+        checks["ollama"] = ollama_ok
+        active_model = settings.ollama_model
+    elif settings.llm_provider == "groq":
+        checks["groq_api_key"] = bool(settings.groq_api_key.strip())
+        active_model = settings.groq_model
+    elif settings.llm_provider == "deepinfra":
+        checks["deepinfra_api_key"] = bool(settings.deepinfra_api_key.strip())
+        active_model = settings.deepinfra_model
+    elif settings.llm_provider == "open_router":
+        checks["open_router_api_key"] = bool(settings.open_router_api_key.strip())
+        active_model = "meta-llama/llama-3.3-70b-instruct:free"
+    else:
+        active_model = "unknown"
 
     all_ok = all(checks.values())
     return {
         "status": "healthy" if all_ok else "degraded",
-        "model": settings.ollama_model,
+        "model": active_model,
         "provider": settings.llm_provider,
         "checks": checks,
     }

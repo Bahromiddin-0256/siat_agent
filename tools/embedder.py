@@ -38,11 +38,27 @@ def get_embedder():
                 logger.info(
                     f"Loading BGE-M3 model: {settings.bge_m3_model} on device={device}"
                 )
+                # Force fp32. FlagEmbedding's encode() re-runs `self.model.half()`
+                # on every call when use_fp16 is True, which on MPS / mixed
+                # device setups produces "expected Float but found Half".
+                # The fp16 speedup is negligible for this model anyway.
+                # NOTE: BGEM3FlagModel uses the plural kwarg `devices=` — passing
+                # `device=` silently ends up in **kwargs and is ignored, leaving
+                # FlagEmbedding to auto-detect. Use `devices` so our choice wins.
                 _model = BGEM3FlagModel(
                     settings.bge_m3_model,
-                    use_fp16=device != "cpu",
-                    device=device,
+                    use_fp16=False,
+                    devices=device,
                 )
+
+                # Belt-and-braces: even with use_fp16=False, force every parameter
+                # to float32 in case the model was loaded with mixed dtypes.
+                try:
+                    import torch
+                    _model.model.to(dtype=torch.float32)
+                except (AttributeError, RuntimeError) as e:
+                    logger.debug(f"Could not force float32 cast: {e}")
+
                 logger.info(f"BGE-M3 model loaded successfully (device={device})")
     return _model
 

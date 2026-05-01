@@ -78,10 +78,14 @@ def _supports_param(cls, param: str) -> bool:
 # Base model selection
 logger.info(f"Initializing LLM provider: {settings.llm_provider}")
 
+# Low temperature: this agent reports statistical numbers — determinism matters
+# more than creativity.
+_TEMPERATURE = 0.1
+
 if settings.llm_provider == "groq":
     groq_kwargs = {
         "model": settings.groq_model,
-        "temperature": 0.7,
+        "temperature": _TEMPERATURE,
         "api_key": settings.groq_api_key,
     }
     if _supports_param(ChatGroq, "streaming"):
@@ -91,7 +95,7 @@ if settings.llm_provider == "groq":
 elif settings.llm_provider == "ollama":
     ollama_kwargs = {
         "model": settings.ollama_model,
-        "temperature": 0.7,
+        "temperature": _TEMPERATURE,
     }
     if _supports_param(ChatOllama, "streaming"):
         ollama_kwargs["streaming"] = False
@@ -102,7 +106,7 @@ elif settings.llm_provider == "open_router":
         "base_url": settings.open_router_base_url,
         "api_key": settings.open_router_api_key,
         "model": "meta-llama/llama-3.3-70b-instruct:free",
-        "temperature": 0.7,
+        "temperature": _TEMPERATURE,
     }
     if _supports_param(ChatOpenAI, "streaming"):
         openai_kwargs["streaming"] = False
@@ -113,7 +117,7 @@ elif settings.llm_provider == "deepinfra":
         "base_url": settings.deepinfra_base_url,
         "api_key": settings.deepinfra_api_key,
         "model": settings.deepinfra_model,
-        "temperature": 0.7,
+        "temperature": _TEMPERATURE,
     }
     if _supports_param(ChatOpenAI, "streaming"):
         deepinfra_kwargs["streaming"] = False

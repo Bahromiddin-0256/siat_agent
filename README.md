@@ -169,7 +169,7 @@ BGE_M3_MODEL=/path/to/local/bge-m3
 
 ```bash
 python main.py
-# Open http://localhost:8000
+# Open http://localhost:8001  (override with PORT in .env)
 ```
 
 On first run the agent builds two Qdrant collections from the SDMX data.
@@ -183,7 +183,7 @@ This takes a few minutes. Subsequent restarts load from the persisted
 ### `POST /chat`
 
 ```bash
-curl -X POST http://localhost:8000/chat \
+curl -X POST http://localhost:8001/chat \
   -H 'Content-Type: application/json' \
   -d '{"message": "Toshkent shahri 2022-yil aholi soni"}'
 ```

@@ -154,201 +154,69 @@ def create_sdmx_agent(
     ]
 
     # System prompt for the agent
-    system_prompt = """You are a helpful assistant specialized in finding statistical data identifiers (SDMX IDs) and extracting actual statistical values.
+    system_prompt = """You are a statistical data assistant for Uzbekistan's statistics agency (SIAT).
+You answer questions in the user's language (Uzbek, Russian, or English) about statistical
+indicators by selecting the right tool, executing it, and explaining the result.
 
-You have access to a database of statistical indicators from Uzbekistan's statistics agency.
-The data includes economic statistics, social statistics, demographic data, and more.
-
-CRITICAL INSTRUCTION - ALWAYS RESPOND AFTER TOOL USE:
-After calling ANY tool and receiving results, you MUST:
-1. Analyze the tool's output carefully
-2. Provide a clear, natural language response to the user
-3. NEVER just call a tool without explaining the results to the user
-4. Format the data in a readable way for the user
-
-PRECISION AND VALIDATION RULES:
-1. **Always verify indicator selection**: Before extracting data, confirm the SDMX ID matches user intent
-2. **Handle ambiguity explicitly**:
-   - If multiple similar indicators exist (e.g., "jami" vs "qiz bolalar" vs "o'g'il bolalar"), list ALL variants
-   - Ask for clarification if unclear which variant to use
-   - Prefer "jami" (total) unless user specifies subcategory
-3. **Validate data availability**:
-   - Check year ranges exist before calculations
-   - Verify region names match available data
-   - Warn user if requested data is missing
-4. **Always include units**: Show measurement units (kishi, mlrd. so'm, etc.) in all responses
-5. **Structured output**: Include indicator name, SDMX ID, region, year(s), and unit in responses
-
-Available tools:
-1. **search_sdmx_semantic**: Use this FIRST for finding indicators. It uses AI embeddings
-   to find semantically similar indicators, even if exact keywords don't match.
-2. **search_sdmx_with_score**: Like semantic search but shows relevance scores.
-3. **search_sdmx_metadata**: Search by calculation methodologies, legal frameworks,
-   classification systems (SOATO, OKVED, etc.), or methodological documentation.
-   Use when user asks about methodology, legal basis, classifiers, or technical details.
-   Returns only SDMX IDs as comma-separated list.
-4. **get_sdmx_id**: Keyword-based search. Use as fallback if semantic search doesn't work well.
-5. **get_sdmx_by_code**: Use when the user provides a specific SDMX code.
-6. **list_sdmx_categories**: Use to browse available statistical domains.
-7. **count_reports_for_category**: Count how many reports (indicators) exist under a category.
-   Use when user asks "nechta hisobot", "how many reports", "сколько отчетов".
-   Example: "30 yillik iqtisodiy makro-ko'rsatkichlar nechta hisobot bor" → count_reports_for_category("30 yillik iqtisodiy makro-ko'rsatkichlar")
-8. **count_reports_by_id**: Count reports by specific SDMX node ID.
-   Example: count_reports_by_id(1916)
-9. **get_sdmx_value**: Use this to extract ACTUAL DATA VALUES after finding the SDMX ID.
-   Flexible usage:
-   - get_sdmx_value(sdmx_id, year, region) → single value
-   - get_sdmx_value(sdmx_id, year) → all regions for that year
-   - get_sdmx_value(sdmx_id, region=region) → all years for that region
-   - get_sdmx_value(sdmx_id) → first row with all years
-   Required when user asks "how many", "what is the value", specific numbers, trends over time, etc.
-10. **get_sdmx_metadata**: Get metadata about an indicator (name, unit, period, department).
-   Use when user asks "SDMX ID X nima haqida" / "what is SDMX ID X about".
-   Example: "SDMX ID 224 nima haqida" → get_sdmx_metadata(224)
-11. **calculate_yearly_growth**: Use this to calculate YEAR-OVER-YEAR GROWTH PERCENTAGES.
-   Required when user asks for "o'sish foizi", "growth rate", "percentage change", "trend" over time.
-
-STATISTICAL ANALYSIS TOOLS:
-10. **calculate_statistics**: Calculate descriptive statistics (mean, median, min, max, std dev, total) over a time period.
-   Keywords: "o'rtacha", "average", "minimal", "maksimal", "statistika"
-11. **calculate_cagr**: Calculate Compound Annual Growth Rate between two years.
-   Keywords: "CAGR", "yillik o'rtacha o'sish", "compound growth"
-12. **compare_regions**: Compare multiple regions for a specific year with ranking and percentages.
-   Keywords: "solishtirish", "compare", "viloyatlar", "regions"
-13. **rank_regions**: Rank all regions by indicator value for a specific year.
-   Keywords: "reyting", "ranking", "eng yuqori", "eng past", "top"
-14. **calculate_percentage_share**: Calculate each region's percentage share of total.
-   Keywords: "ulush", "foiz", "percentage share", "distribution", "taqsimot"
-15. **compare_years**: Compare two specific years with absolute and percentage change.
-   Keywords: "solishtir", "compare years", "farq", "o'zgarish"
-16. **calculate_period_total**: Calculate total sum across a time period.
-   Keywords: "jami", "umumiy", "total", "sum"
-17. **calculate_moving_average**: Calculate moving average for smoothed trends.
-   Keywords: "trend", "silliq o'sish", "smoothed", "harakatlanuvchi o'rtacha"
-
-Best practices and tool selection guide:
-
-TERMINOLOGY MAPPING (select appropriate tool based on keywords):
-- "SDMX ID X nima haqida" / "what is SDMX ID X about" → get_sdmx_metadata(X)
-- "nechta hisobot" / "how many reports" / "сколько отчетов" / "nechta ko'rsatkich" → count_reports_for_category
-- "o'rtacha" / "average" → calculate_statistics
-- "eng yuqori" / "eng past" → rank_regions
-- "solishtirish" / "compare" + regions → compare_regions
-- "solishtirish" / "compare" + years → compare_years
-- "ulush" / "share" → calculate_percentage_share
-- "jami" / "total" / "umumiy" → calculate_period_total
-- "CAGR" / "yillik o'rtacha o'sish" → calculate_cagr
-- "trend" / "silliq" → calculate_moving_average
-- "o'sish foizi" / "growth rate" → calculate_yearly_growth
-- "reyting" / "ranking" → rank_regions
-
-- For questions asking "what data is available" or "what statistics do you have":
-  * Direct users to the full catalog at https://siat.stat.uz
-  * Example: "To'liq katalogni https://siat.stat.uz da ko'rishingiz mumkin."
-  * Optionally mention: list_sdmx_categories to browse available domains
-- For questions asking for GROWTH RATES, PERCENTAGES, or TRENDS:
-  * Use calculate_yearly_growth(sdmx_id, start_year, end_year) directly
-  * Keywords: "o'sish foizi", "foiz farqi", "growth rate", "percentage change", "trend"
-  * Example: "SDMX ID 2441 yillik o'sish foizlari" → calculate_yearly_growth(2441)
-  * DO NOT search for other indicators - calculate from the data itself
-- For questions asking "how many" or "what value":
-  STEP 1: Use semantic search to find the SDMX ID
-  STEP 2: Use get_sdmx_value(sdmx_id, year, region) to extract the actual number
-- When multiple similar indicators are found:
-  * Look at the indicator names and prefer ones with "jami" (total), "umumiy" (general), or no subcategory
-  * Avoid subsets like "shahar" (urban), "qishloq" (rural), "qiz" (girls), "o'g'il" (boys), specific regions
-  * If semantic search returns multiple results, review the names and choose the most general/total variant
-  * If still ambiguous, ASK the user which variant they want
-  * IMPORTANT: Always mention the exact indicator name and SDMX ID you're using in your response
-- Start with semantic search (search_sdmx_semantic) for finding indicators
-- Use keyword search (get_sdmx_id) if semantic search returns poor results
-- CRITICAL: When you find an indicator, ALWAYS state the exact indicator name and SDMX ID in your response
-  * Example format: "Men '[Indicator Name]' ko'rsatkichidan foydalandim (SDMX ID [id])"
-  * This ensures transparency and allows users to verify the correct indicator is being used
-- If multiple similar indicators exist, mention them and explain why you chose one
-- At the END of your response, ALWAYS include a "Foydalanilgan ko'rsatkichlar:" section listing all SDMX IDs used:
-  * Format:
-    ```
-    ---
-    Foydalanilgan ko'rsatkichlar:
-    - SDMX ID [id]: [Indicator Name]
-    - SDMX ID [id]: [Indicator Name]
-    ```
-  * This provides a clear reference list for users
-- Always provide clear, helpful responses in the same language as the question
-- When answering with actual data, format naturally in the user's language
-
-You can understand questions in English, Russian, and Uzbek.
-
-Example workflows:
-
-Workflow 1 (General catalog inquiry):
-User: "Qanday statistika ma'lumotlari bor?" or "What statistics are available?"
-Answer directly WITHOUT using tools: "To'liq katalogni https://siat.stat.uz da ko'rishingiz mumkin."
-(No tool calls needed for this type of general question)
-
-Workflow 2 (Handling multiple similar indicators):
-User: "2013-yil Andijon viloyatida nechta bola tu'gilgan?"
-1. search_sdmx_semantic("tug'ilganlar soni") → finds multiple results
-2. Review the names: Look for "jami" (total) in the indicator names
-3. Choose the indicator with "jami" or the most general variant
-4. get_sdmx_value(chosen_id, "2013", "Andijon")
-5. Answer: "Andijon viloyatida 2013-yil **jami** 64239 ta bola tu'gilgan.
-
+## Core rules
+1. **Always respond in natural language after a tool runs.** Never end on a raw tool call —
+   summarize and format the result for the user.
+2. **State which indicator you used.** Include the exact name and SDMX ID in the response.
+3. **Always include units** returned by the tool (kishi, mlrd. so'm, mln so'm, etc.).
+4. **Prefer "jami" (total)** when several variants exist (e.g. "jami" vs "qiz bolalar" /
+   "o'g'il bolalar" / "shahar" / "qishloq"). If still ambiguous, ask the user.
+5. **End every data response with a reference list:**
+   ```
    ---
    Foydalanilgan ko'rsatkichlar:
-   - SDMX ID [id]: Tug'ilganlar soni (jami)"
+   - SDMX ID <id>: <Indicator Name>
+   ```
+6. For general "what data exists?" questions, do not call tools — point to
+   https://siat.stat.uz and optionally suggest `list_sdmx_categories`.
 
-CRITICAL: Always include the reference list at the end
+## Tool selection (by keyword)
+| User intent (uz / en / ru) | Tool |
+|---|---|
+| Find an indicator | `search_sdmx_semantic` (primary), `get_sdmx_id` (keyword fallback) |
+| Find by methodology / classifier (SOATO, OKVED) | `search_sdmx_metadata` |
+| User gave an SDMX code | `get_sdmx_by_code` |
+| "SDMX ID X nima haqida" / "what is SDMX ID X" | `get_sdmx_metadata` |
+| "nechta hisobot" / "how many reports" / "сколько отчетов" | `count_reports_for_category` or `count_reports_by_id` |
+| "qancha" / "how many" / "what value" | first `search_sdmx_semantic`, then `get_sdmx_value` |
+| "o'sish foizi" / "growth rate" / "percentage change" | `calculate_yearly_growth` |
+| "o'rtacha" / "average" / "minimal" / "maksimal" | `calculate_statistics` |
+| "CAGR" / "yillik o'rtacha o'sish" | `calculate_cagr` |
+| "solishtir" / "compare" + regions | `compare_regions` |
+| "solishtir" / "compare" + years | `compare_years` |
+| "reyting" / "ranking" / "eng yuqori" / "eng past" | `rank_regions` |
+| "ulush" / "share" / "taqsimot" | `calculate_percentage_share` |
+| "jami" / "total" over a period | `calculate_period_total` |
+| "trend" / "silliq" / "smoothed" | `calculate_moving_average` |
 
-Workflow 3 (Year-over-year growth rates):
-User: "SDMX ID 2441 ma'lumotlar bo'yicha yillik o'sish foizlarni chiqar"
-1. calculate_yearly_growth(2441) → returns table with years, values, and growth percentages
-2. Answer: Present the table showing year-over-year growth rates
+## `get_sdmx_value` usage
+- `get_sdmx_value(id, year, region)` → single value
+- `get_sdmx_value(id, year)` → all regions for that year
+- `get_sdmx_value(id, region=region)` → all years for that region
+- `get_sdmx_value(id)` → all years, first region
 
-   ---
-   Foydalanilgan ko'rsatkichlar:
-   - SDMX ID 2441: Doimiy aholi soni (jami)
+For growth/trend questions, do **not** search for new indicators — call
+`calculate_yearly_growth(sdmx_id, ...)` on the SDMX ID the user gave or the one you found.
 
-Workflow 4 (Investment statistics with units):
-User: "Asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 2023"
-1. search_sdmx_semantic("asosiy kapitalga investitsiyalar") → finds SDMX ID 1326
-2. get_sdmx_value(1326, "2023") → returns "O'zbekiston Respublikasi 2023-yilda 356071.4 mlrd. so'm"
-3. Answer: "2023-yilda O'zbekistonda asosiy kapitalga o'zlashtirilgan investitsiyalar hajmi 356071.4 mlrd. so'mni tashkil etdi.
+## Examples
 
-   ---
-   Foydalanilgan ko'rsatkichlar:
-   - SDMX ID 1326: Asosiy kapitalga o'zlashtirilgan investitsiyalar"
+**Counting births in a region:**
+User: "2013-yil Andijon viloyatida nechta bola tug'ilgan?"
+→ `search_sdmx_semantic("tug'ilganlar soni")` → pick the "jami" variant
+→ `get_sdmx_value(<id>, "2013", "Andijon")`
+→ "Andijon viloyatida 2013-yil jami 64 239 ta bola tug'ilgan." + reference list.
 
-Workflow 5 (Methodology/classifier search):
-User: "Qaysi ko'rsatkichlar SOATO klassifikatori ishlatadi?" or
-      "Which indicators use live birth methodology?"
-1. search_sdmx_metadata("SOATO classifier") → returns "SDMX IDs: 225, 226, 227"
-2. Optionally get_sdmx_metadata() for details on each ID
-3. Answer: Present the list of relevant indicators found through metadata search
+**Specific SDMX ID lookup:**
+User: "SDMX ID 224 nima haqida?"
+→ `get_sdmx_metadata(224)` → "SDMX ID 224: Tug'ilganlar soni (qiz bolalar), o'lchov: kishi, davr: yillik" + reference list.
 
-   ---
-   Foydalanilgan ko'rsatkichlar:
-   - SDMX ID 225: Tug'ilganlar soni (o'g'il bolalar)
-   - SDMX ID 226: ...
-
-Workflow 6 (Asking about specific SDMX ID):
-User: "SDMX ID 224 nima haqida?" or "What is SDMX ID 224 about?"
-1. get_sdmx_metadata(224) → returns indicator name, unit, periodicity
-2. Answer: "SDMX ID 224: Tug'ilganlar soni (qiz bolalar), O'lchov: kishi, Davr: yillik"
-
-   ---
-   Foydalanilgan ko'rsatkichlar:
-   - SDMX ID 224: Tug'ilganlar soni (qiz bolalar)
-
-Workflow 7 (Counting reports in a category):
-User: "30 yillik iqtisodiy makro-ko'rsatkichlar nechta hisobot bor?"
-1. count_reports_for_category("30 yillik iqtisodiy makro-ko'rsatkichlar") → returns count details
-2. Answer: Present the number of reports (15 ta) with category details and breakdown by subcategories
-
-Important:
-- Always use the EXACT unit returned by get_sdmx_value tool (kishi, mlrd. so'm, mln so'm, etc.)
-- Always include the reference list at the end of every response that uses SDMX data
+**Methodology search:**
+User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
+→ `search_sdmx_metadata("SOATO classifier")` → list the IDs returned + reference list.
 """
 
     # Create the ReAct agent
@@ -373,7 +241,13 @@ Important:
     return agent, system_prompt, tools_map
 
 
-async def run_agent_async(agent, question: str, system_prompt: str = None, tools_map: dict = None) -> str:
+async def run_agent_async(
+    agent,
+    question: str,
+    system_prompt: str = None,
+    tools_map: dict = None,
+    thread_id: str | None = None,
+) -> str:
     """
     Run the agent asynchronously with a question.
 
@@ -382,12 +256,14 @@ async def run_agent_async(agent, question: str, system_prompt: str = None, tools
         question: User's question
         system_prompt: Optional system prompt
         tools_map: Optional map of tool names to tool functions (for XML fallback)
+        thread_id: Per-request thread id for checkpointer isolation. Callers
+            should pass a unique value per session/request to avoid cross-talk.
 
     Returns:
         Agent's response
     """
     logger.info(f"Running agent async with question: {question[:100]}...")
-    config = {"configurable": {"thread_id": "1"}}
+    config = {"configurable": {"thread_id": thread_id or "default"}}
 
     # Build messages with system prompt
     messages = []
@@ -425,7 +301,13 @@ async def run_agent_async(agent, question: str, system_prompt: str = None, tools
     return extract_final_response(result["messages"], tools_map)
 
 
-def run_agent(agent, question: str, system_prompt: str = None, tools_map: dict = None) -> str:
+def run_agent(
+    agent,
+    question: str,
+    system_prompt: str = None,
+    tools_map: dict = None,
+    thread_id: str | None = None,
+) -> str:
     """
     Run the agent synchronously with a question.
 
@@ -434,12 +316,13 @@ def run_agent(agent, question: str, system_prompt: str = None, tools_map: dict =
         question: User's question
         system_prompt: Optional system prompt
         tools_map: Optional map of tool names to tool functions (for XML fallback)
+        thread_id: Per-request thread id for checkpointer isolation.
 
     Returns:
         Agent's response
     """
     logger.info(f"Running agent sync with question: {question[:100]}...")
-    config = {"configurable": {"thread_id": "1"}}
+    config = {"configurable": {"thread_id": thread_id or "default"}}
 
     # Build messages with system prompt
     messages = []
@@ -578,118 +461,122 @@ def extract_final_response(messages: list[BaseMessage], tools_map: dict = None) 
     return "No response generated."
 
 
-async def run_agent_async_stream(agent, question: str, system_prompt: str = None, tools_map: dict = None):
+async def run_agent_async_stream(
+    agent,
+    question: str,
+    system_prompt: str = None,
+    tools_map: dict = None,
+    thread_id: str | None = None,
+):
     """
-    Run agent and yield intermediate tool calls as they happen.
+    Run the agent and yield tool calls / results / final response *as they happen*.
+
+    Uses `agent.astream(stream_mode="updates")` so each LangGraph node update is
+    surfaced to the client immediately, rather than after the whole run finishes.
 
     Args:
         agent: The compiled agent
         question: User's question
         system_prompt: Optional system prompt
         tools_map: Optional map of tool names to tool functions (for XML fallback)
+        thread_id: Per-request thread id for checkpointer isolation.
 
     Yields:
         dict: Streaming messages with type, tool info, and results
     """
     logger.info(f"Running agent async with streaming for question: {question[:100]}...")
-    config = {"configurable": {"thread_id": "1"}}
+    config = {"configurable": {"thread_id": thread_id or "default"}}
 
     try:
-        # Build messages
-        messages = []
+        messages: list[BaseMessage] = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=question))
 
-        # Invoke agent
-        result = await agent.ainvoke({"messages": messages}, config=config)
-        logger.info("Agent invocation completed")
-
-        # Log the result structure
-        if isinstance(result, dict) and "messages" in result:
-            logger.info(f"Received {len(result['messages'])} messages from agent")
-            for i, msg in enumerate(result["messages"]):
-                msg_type = type(msg).__name__
-                logger.debug(f"Message {i}: {msg_type}")
-        else:
-            logger.warning(f"Unexpected result type: {type(result)}")
-
-        # Sanitize tool calls
-        if isinstance(result, dict) and "messages" in result:
-            sanitized = []
-            for m in result["messages"]:
-                try:
-                    sanitized.append(_sanitize_tool_call_args(m))
-                except (AttributeError, TypeError, ValueError) as e:
-                    logger.warning(f"Failed to sanitize tool call args for message: {e}")
-                    sanitized.append(m)
-            result["messages"] = sanitized
-
-        # Process messages sequentially and yield tool steps
-        logger.info("Processing messages and streaming tool calls...")
+        all_messages: list[BaseMessage] = []
+        seen_message_ids: set[int] = set()
         tool_call_count = 0
         tool_result_count = 0
 
-        for message in result["messages"]:
-            if isinstance(message, AIMessage):
-                # Check for tool calls
-                if hasattr(message, 'tool_calls') and message.tool_calls:
-                    for tool_call in message.tool_calls:
-                        tool_call_count += 1
-                        # Get tool name and args
-                        tool_name = tool_call.get("name") if isinstance(tool_call, dict) else getattr(tool_call, "name", None)
-                        tool_args = tool_call.get("args") if isinstance(tool_call, dict) else getattr(tool_call, "args", None)
+        async for update in agent.astream(
+            {"messages": messages},
+            config=config,
+            stream_mode="updates",
+        ):
+            # update is a dict like {"agent": {"messages": [...]}, ...} keyed by node name
+            for node_name, node_state in update.items():
+                node_messages = (
+                    node_state.get("messages", []) if isinstance(node_state, dict) else []
+                )
+                for raw in node_messages:
+                    try:
+                        msg = _sanitize_tool_call_args(raw)
+                    except (AttributeError, TypeError, ValueError) as e:
+                        logger.warning(f"Failed to sanitize tool call args: {e}")
+                        msg = raw
 
-                        logger.info(f"Tool call #{tool_call_count}: {tool_name}")
-                        logger.debug(f"  Args: {tool_args}")
+                    # Deduplicate: a checkpointer can re-emit the same message across updates.
+                    msg_key = id(msg)
+                    if msg_key in seen_message_ids:
+                        continue
+                    seen_message_ids.add(msg_key)
+                    all_messages.append(msg)
 
+                    if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
+                        for tool_call in msg.tool_calls:
+                            tool_call_count += 1
+                            tool_name = (
+                                tool_call.get("name") if isinstance(tool_call, dict)
+                                else getattr(tool_call, "name", None)
+                            )
+                            tool_args = (
+                                tool_call.get("args") if isinstance(tool_call, dict)
+                                else getattr(tool_call, "args", None)
+                            )
+                            logger.info(f"Tool call #{tool_call_count}: {tool_name}")
+                            yield {
+                                "type": "tool_start",
+                                "tool_name": tool_name,
+                                "tool_args": tool_args,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+
+                    elif isinstance(msg, ToolMessage):
+                        tool_result_count += 1
+                        tool_result = msg.content
+                        if not isinstance(tool_result, str):
+                            tool_result = str(tool_result)
+
+                        max_length = 10000
+                        if len(tool_result) > max_length:
+                            logger.warning(
+                                f"Tool result truncated from {len(tool_result)} to {max_length} chars"
+                            )
+                            tool_result = tool_result[:max_length] + "\n... (truncated)"
+
+                        logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
                         yield {
-                            "type": "tool_start",
-                            "tool_name": tool_name,
-                            "tool_args": tool_args,
-                            "timestamp": datetime.now().isoformat()
+                            "type": "tool_result",
+                            "tool_result": tool_result,
+                            "timestamp": datetime.now().isoformat(),
                         }
 
-            elif isinstance(message, ToolMessage):
-                tool_result_count += 1
-                # Ensure content is string and handle edge cases
-                tool_result = message.content
+                        for chart in pop_charts():
+                            yield {
+                                "type": "chart",
+                                "chart_data": chart,
+                                "timestamp": datetime.now().isoformat(),
+                            }
 
-                # Defensive: ensure it's a string
-                if not isinstance(tool_result, str):
-                    logger.warning(f"ToolMessage.content is not string: {type(tool_result)}, converting...")
-                    tool_result = str(tool_result)
+        logger.info(
+            f"Streamed {tool_call_count} tool calls and {tool_result_count} tool results"
+        )
 
-                # Optional: Truncate extremely long results (10KB limit)
-                max_length = 10000
-                if len(tool_result) > max_length:
-                    logger.warning(f"Tool result truncated from {len(tool_result)} to {max_length} chars")
-                    tool_result = tool_result[:max_length] + "\n... (truncated)"
-
-                logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
-                logger.debug(f"  Preview: {tool_result[:200]}...")
-
-                yield {
-                    "type": "tool_result",
-                    "tool_result": tool_result,
-                    "timestamp": datetime.now().isoformat()
-                }
-
-                for chart in pop_charts():
-                    yield {
-                        "type": "chart",
-                        "chart_data": chart,
-                        "timestamp": datetime.now().isoformat()
-                    }
-
-        logger.info(f"Streamed {tool_call_count} tool calls and {tool_result_count} tool results")
-
-        # Send final response
-        final_response = extract_final_response(result["messages"], tools_map)
+        final_response = extract_final_response(all_messages, tools_map)
         yield {
             "type": "response",
             "content": final_response,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
@@ -697,6 +584,6 @@ async def run_agent_async_stream(agent, question: str, system_prompt: str = None
         yield {
             "type": "error",
             "content": f"Error processing request: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
