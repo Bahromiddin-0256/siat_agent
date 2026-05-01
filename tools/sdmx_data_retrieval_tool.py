@@ -571,6 +571,134 @@ def inspect_sdmx_data(sdmx_id: int) -> str:
 
 
 @tool
+def rank_rows_by_value(
+    sdmx_id: int,
+    period: str,
+    top_n: Optional[int] = None,
+    descending: bool = True,
+) -> str:
+    """
+    Rank all rows (regions OR categories) of a dataset by their value in a given period.
+
+    Use this WHENEVER the user asks for "eng yuqori", "eng past", "max", "min",
+    "top N", "ranking", "qaysi ... eng ko'p", "which ... is the highest", etc.
+    DO NOT eyeball a list of values from `get_sdmx_value` and pick the max
+    yourself — LLMs make sorting mistakes on long unsorted lists. Always call
+    this tool when ordering matters.
+
+    Works for any granularity: yearly ("2024"), quarterly ("2025-Q3"), or
+    monthly ("2025-M03").
+
+    Args:
+        sdmx_id: The SDMX identifier.
+        period: The exact period string (e.g. "2024", "2025-Q3"). A bare year
+                against quarterly data picks that year's first matching period.
+        top_n: If set, only the first N rows of the ranking are returned.
+               If None, all rows are returned.
+        descending: True = highest first (default, for "eng yuqori" / "max").
+                    False = lowest first (for "eng past" / "min").
+
+    Returns:
+        A numbered, sorted ranking with values, units, and explicit max/min.
+
+    Example:
+        rank_rows_by_value(4530, "2025-Q3")
+        → ranks 7 mortality categories from highest to lowest deaths in Q3 2025
+        rank_rows_by_value(248, "2025", top_n=5)
+        → top 5 most populous regions in 2025
+    """
+    data = load_sdmx_data_file(sdmx_id)
+    if data is None:
+        return f"Error: SDMX data file for ID {sdmx_id} not found"
+    if not isinstance(data, list) or len(data) == 0:
+        return f"Error: Invalid data format in SDMX file {sdmx_id}"
+
+    metadata = data[0].get("metadata", [])
+    data_section = data[0].get("data", [])
+    if not data_section:
+        return f"SDMX ID {sdmx_id}: ma'lumot yo'q"
+
+    unit = Units.DEFAULT
+    indicator_name = ""
+    for item in metadata:
+        name_en = (item.get("name_en") or "").lower()
+        if "unit of measurement" in name_en:
+            unit = item.get("value_uz", unit)
+        elif "indicator name" in name_en or "dataset name" in name_en:
+            indicator_name = item.get("value_uz", "")
+
+    # Resolve the period: accept exact "2025-Q3" or year prefix "2025".
+    period_keys = [k for k in data_section[0].keys() if _is_period_key(k)]
+    matched = _matching_periods(period_keys, period)
+    if not matched:
+        return (
+            f"Davr topilmadi: '{period}'. "
+            f"Mavjud davrlar: {', '.join(sorted(period_keys, key=_period_sort_key))}"
+        )
+    chosen_period = sorted(matched, key=_period_sort_key)[0]
+
+    # Pull (label, value) pairs, dropping rows that lack a numeric value.
+    pairs: list[tuple[str, float]] = []
+    for row in data_section:
+        if not isinstance(row, dict):
+            continue
+        label = (
+            row.get("Klassifikator")
+            or row.get("Klassifikator_ru")
+            or row.get("Klassifikator_en")
+            or "?"
+        )
+        raw = row.get(chosen_period)
+        if raw is None or raw == "":
+            continue
+        try:
+            pairs.append((label, float(raw)))
+        except (ValueError, TypeError):
+            continue
+
+    if not pairs:
+        return f"SDMX ID {sdmx_id} davr {chosen_period} uchun raqamli qiymatlar yo'q"
+
+    pairs.sort(key=lambda x: x[1], reverse=descending)
+    shown = pairs if top_n is None else pairs[: max(1, int(top_n))]
+
+    direction = "eng yuqori" if descending else "eng past"
+    title = indicator_name or f"SDMX ID {sdmx_id}"
+    lines = [
+        f"{title} — {chosen_period} bo'yicha reyting ({direction} birinchi)",
+        f"O'lchov: {unit}",
+        "",
+    ]
+
+    # Pre-format numbers with locale-style separators for readability
+    def fmt(v: float) -> str:
+        if v == int(v):
+            return f"{int(v):,}".replace(",", " ")
+        return f"{v:,.2f}".replace(",", " ")
+
+    width = max(len(label) for label, _ in shown) + 2
+    for i, (label, value) in enumerate(shown, 1):
+        lines.append(f"{i:>2}. {label.ljust(width)} {fmt(value)} {unit}")
+
+    # Top/bottom summary always pulled from the FULL sort, not the truncated view.
+    # Note: when descending=False, "top" of the sorted list is actually the min.
+    if descending:
+        top_label, top_value = pairs[0]
+        bot_label, bot_value = pairs[-1]
+    else:
+        top_label, top_value = pairs[-1]
+        bot_label, bot_value = pairs[0]
+    lines.append("")
+    lines.append(f"Maksimum: {top_label} → {fmt(top_value)} {unit}")
+    lines.append(f"Minimum:  {bot_label} → {fmt(bot_value)} {unit}")
+    if bot_value not in (0, 0.0) and top_value > 0:
+        ratio = top_value / bot_value
+        lines.append(f"Nisbat (max/min): {ratio:.2f}x")
+
+    return "\n".join(lines)
+
+
+@tool
 def calculate_yearly_growth(
     sdmx_id: int,
     start_year: Optional[str] = None,

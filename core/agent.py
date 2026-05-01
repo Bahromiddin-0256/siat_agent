@@ -28,6 +28,7 @@ from tools import (
     get_sdmx_value,
     get_sdmx_metadata,
     inspect_sdmx_data,
+    rank_rows_by_value,
     calculate_yearly_growth,
     calculate_statistics,
     calculate_cagr,
@@ -138,6 +139,7 @@ def create_sdmx_agent(
         inspect_sdmx_data,  # Inspect dataset structure (rows + periods) before querying
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata
+        rank_rows_by_value,  # Sorted ranking — use for max/min/top/bottom queries
 
         # Time series analysis tools
         calculate_yearly_growth,  # Calculate year-over-year growth rates
@@ -175,6 +177,22 @@ indicators by selecting the right tool, executing it, and explaining the result.
    ```
 6. For general "what data exists?" questions, do not call tools — point to
    https://siat.stat.uz and optionally suggest `list_sdmx_categories`.
+7. **NEVER eyeball a list of values to pick max/min/top/bottom.** If the user
+   asks for "eng yuqori", "eng past", "max", "min", "ranking", "qaysi ... eng ko'p",
+   "which ... is highest/lowest", use `rank_rows_by_value(sdmx_id, period)` —
+   it returns the values pre-sorted with explicit max, min, and ratio. Reading
+   an unsorted list and picking the largest by sight is unreliable and has
+   produced wrong answers before.
+8. **Clarify before answering nonsensical or domain-conflated questions.**
+   If the user mixes two unrelated statistical domains (e.g. "GDP contribution
+   to ecology", "unemployment ratio of birth rate") or asks for something the
+   data cannot express, ask which indicator they actually mean — do not
+   silently reframe the question.
+9. **Search retry budget.** Run `search_sdmx_semantic` at most 2 times for the
+   same intent. If both calls return the same top results, switch strategy:
+   either pick the best ID from those results and call `inspect_sdmx_data`,
+   or fall back to `get_sdmx_id` (keyword search). Do not loop on semantic
+   search with reworded queries.
 
 ## Standard workflow (use this for any data question)
 1. **Find the indicator** with `search_sdmx_semantic`. Pick the SDMX ID whose
@@ -206,7 +224,8 @@ indicators by selecting the right tool, executing it, and explaining the result.
 | "CAGR" / "yillik o'rtacha o'sish" | `calculate_cagr` |
 | "solishtir" / "compare" + regions | `compare_regions` |
 | "solishtir" / "compare" + years | `compare_years` |
-| "reyting" / "ranking" / "eng yuqori" / "eng past" | `rank_regions` |
+| "reyting" / "ranking" / "eng yuqori" / "eng past" / max / min / top N (any dataset) | `rank_rows_by_value` |
+| "reyting" between **regions specifically** for `compare_regions`-style data | `rank_regions` |
 | "ulush" / "share" / "taqsimot" | `calculate_percentage_share` |
 | "jami" / "total" over a period | `calculate_period_total` |
 | "trend" / "silliq" / "smoothed" | `calculate_moving_average` |
@@ -236,12 +255,13 @@ User: "Toshkent shahar aholisining 2020–2023 yillardagi o'sish sur'ati"
 → `calculate_yearly_growth(<id>, start_year="2020", end_year="2023", region="Toshkent shahri")`
 → Present the growth table + reference list.
 
-**Quarterly mortality breakdown:**
-User: "2025-yilning 3-choragida nimadan ko'p odam vafot etgan?"
+**Quarterly mortality breakdown (with ranking):**
+User: "2025-Q3 da o'lim sabablari ichida eng yuqori va eng past kategoriyalar farqi necha barobar?"
 → `search_sdmx_semantic("vafot etganlarning sabablari")` → SDMX 4530 (quarterly)
-→ `inspect_sdmx_data(4530)` → see categories (infektsion, o'smalar, ...) and periods (2025-Q1..Q3)
-→ `get_sdmx_value(4530, "2025-Q3")` → all categories for that quarter
-→ Rank the categories in the answer + reference list.
+→ `inspect_sdmx_data(4530)` → confirm 7 categories + 2025-Q3 is available
+→ `rank_rows_by_value(4530, "2025-Q3")` → returns sorted list with explicit max,
+   min, and ratio. NEVER read `get_sdmx_value`'s output and pick the max yourself.
+→ Quote the max/min and the ratio directly from the tool output + reference list.
 
 **Specific SDMX ID lookup:**
 User: "SDMX ID 224 nima haqida?"

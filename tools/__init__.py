@@ -27,6 +27,7 @@ from .sdmx_data_retrieval_tool import (
     get_sdmx_value,
     get_sdmx_metadata,
     inspect_sdmx_data,
+    rank_rows_by_value,
     calculate_yearly_growth,
 )
 from .sdmx_statistics_tool import (
@@ -61,6 +62,7 @@ __all__ = [
     "get_sdmx_value",
     "get_sdmx_metadata",
     "inspect_sdmx_data",
+    "rank_rows_by_value",
     "calculate_yearly_growth",
     "calculate_statistics",
     "calculate_cagr",
