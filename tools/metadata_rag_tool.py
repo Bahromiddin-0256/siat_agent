@@ -6,6 +6,7 @@ over methodology, classifiers, legal references, and definitions.
 """
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,24 @@ from tools.qdrant_shared_client import get_shared_client
 logger = setup_logger(__name__)
 
 _COLLECTION = "sdmx_metadata"
+
+# TTL cache mirroring rag_tool.py — same query repeated within 1h reuses result.
+_query_cache: dict[str, tuple[str, datetime]] = {}
+_CACHE_TTL = timedelta(hours=1)
+
+
+def _cache_get(key: str) -> str | None:
+    entry = _query_cache.get(key)
+    if entry and datetime.now() - entry[1] < _CACHE_TTL:
+        return entry[0]
+    return None
+
+
+def _cache_set(key: str, value: str) -> None:
+    if len(_query_cache) >= 512:
+        oldest = min(_query_cache, key=lambda k: _query_cache[k][1])
+        del _query_cache[oldest]
+    _query_cache[key] = (value, datetime.now())
 
 
 def extract_metadata_from_sdmx_files(base_dir: str = "jsons/sdmxs") -> list[dict]:
@@ -317,6 +336,12 @@ def search_sdmx_metadata(question: str, k: int = 10) -> str:
 
     k = max(1, min(k, 20))
 
+    cache_key = f"{question}|{k}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        logger.info(f"Metadata cache hit for: '{question}' (k={k})")
+        return cached
+
     logger.info(f"Searching metadata for: '{question}' (k={k})")
 
     dense, sparse = encode_query(question)
@@ -339,7 +364,11 @@ def search_sdmx_metadata(question: str, k: int = 10) -> str:
     ).points
 
     if not results:
-        return f"No matching SDMX IDs found for: '{question}'"
+        result_text = f"No matching SDMX IDs found for: '{question}'"
+        _cache_set(cache_key, result_text)
+        return result_text
 
     sdmx_ids = [point.payload["sdmx_id"] for point in results]
-    return f"SDMX IDs: {', '.join(map(str, sdmx_ids))}"
+    result_text = f"SDMX IDs: {', '.join(map(str, sdmx_ids))}"
+    _cache_set(cache_key, result_text)
+    return result_text

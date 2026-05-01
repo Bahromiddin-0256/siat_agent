@@ -695,6 +695,16 @@ def rank_rows_by_value(
         ratio = top_value / bot_value
         lines.append(f"Nisbat (max/min): {ratio:.2f}x")
 
+    # Auto-emit a bar chart so the frontend can render the ranking visually.
+    # Cap at 15 bars: more than that is unreadable and slow to render.
+    chart_pairs = shown[:15] if descending else list(reversed(shown[-15:]))
+    push_chart({
+        "chart_type": "bar",
+        "title": f"{title} — {chosen_period}",
+        "unit": unit,
+        "data": [{"label": label, "value": value} for label, value in chart_pairs],
+    })
+
     return "\n".join(lines)
 
 
@@ -843,3 +853,135 @@ def calculate_yearly_growth(
 
     logger.info(f"Calculated growth rates for {len(period_data)} periods")
     return "\n".join(results)
+
+
+@tool
+def forecast_value(
+    sdmx_id: int,
+    target_year: int,
+    region: Optional[str] = None,
+    base_years: int = 5,
+) -> str:
+    """
+    Project an indicator into the future using the recent CAGR (compound annual
+    growth rate). This is a *quick model-based estimate*, NOT an official SIAT
+    forecast — the response always says so explicitly.
+
+    Use ONLY when the user explicitly asks for a future / projection / forecast
+    ("2030-yilda qancha bo'ladi?", "what will it be in 2028?"). For historical
+    data, use `get_sdmx_value` or `calculate_yearly_growth` instead.
+
+    Args:
+        sdmx_id: The SDMX identifier.
+        target_year: The future year to project to (must be > latest data year).
+        region: Optional region/category. Defaults to the first row (national total).
+        base_years: How many recent years of data to use for the CAGR baseline
+                    (default 5; minimum 2).
+
+    Returns:
+        A formatted projection with: baseline period, CAGR used, target year,
+        projected value, and an explicit disclaimer.
+
+    Example:
+        forecast_value(246, 2030, "Toshkent shahri")
+        → "Asos: 2020→2025 CAGR = +3.91% → 2030: ~3 778.5 ming kishi.
+           ⚠ Bu rasmiy SIAT prognozi emas, oxirgi 5 yil sur'atiga asoslangan."
+    """
+    data = load_sdmx_data_file(sdmx_id)
+    if data is None:
+        return f"Error: SDMX data file for ID {sdmx_id} not found"
+    if not isinstance(data, list) or not data:
+        return f"Error: Invalid data format in SDMX file {sdmx_id}"
+
+    metadata = data[0].get("metadata", [])
+    data_section = data[0].get("data", [])
+    if not data_section:
+        return f"SDMX ID {sdmx_id}: ma'lumot yo'q"
+
+    unit = Units.DEFAULT
+    indicator_name = ""
+    for item in metadata:
+        name_en = (item.get("name_en") or "").lower()
+        if "unit of measurement" in name_en:
+            unit = item.get("value_uz", unit)
+        elif "indicator name" in name_en or "dataset name" in name_en:
+            indicator_name = item.get("value_uz", "")
+
+    # Find target row
+    target_row = None
+    region_name = "O'zbekiston Respublikasi"
+    for row in data_section:
+        if not isinstance(row, dict):
+            continue
+        if region:
+            if _row_matches_region(row, region):
+                target_row = row
+                region_name = row.get("Klassifikator") or row.get("Klassifikator_ru") or region
+                break
+        else:
+            target_row = row
+            region_name = row.get("Klassifikator") or row.get("Klassifikator_ru") or region_name
+            break
+
+    if target_row is None:
+        return f"Mintaqa topilmadi: '{region}' uchun SDMX ID {sdmx_id}"
+
+    # Pull yearly data only — forecasting on quarterly/monthly needs different math
+    yearly: list[tuple[int, float]] = []
+    for key, value in target_row.items():
+        if not _is_period_key(key) or "-" in key:
+            continue
+        if value is None:
+            continue
+        try:
+            yearly.append((int(key), float(value)))
+        except (ValueError, TypeError):
+            continue
+
+    if len(yearly) < 2:
+        return (
+            f"SDMX ID {sdmx_id}: kamida 2 yillik kuzatuv kerak prognoz uchun. "
+            f"Mavjud nuqtalar: {len(yearly)}"
+        )
+
+    yearly.sort()
+    latest_year, latest_value = yearly[-1]
+
+    if target_year <= latest_year:
+        return (
+            f"target_year={target_year} ma'lumot oxirgi yili {latest_year} dan keyin bo'lishi kerak. "
+            f"Tarixiy qiymat uchun `get_sdmx_value(sdmx_id, year={target_year})` ishlating."
+        )
+
+    base_years = max(2, int(base_years))
+    base_window = yearly[-base_years:] if len(yearly) >= base_years else yearly
+    start_year, start_value = base_window[0]
+    end_year, end_value = base_window[-1]
+    span_years = end_year - start_year
+
+    if span_years <= 0 or start_value <= 0:
+        return f"SDMX ID {sdmx_id}: prognoz uchun yetarli o'sish ma'lumoti yo'q"
+
+    cagr = (end_value / start_value) ** (1 / span_years) - 1
+    horizon = target_year - latest_year
+    projected = latest_value * (1 + cagr) ** horizon
+
+    def fmt(v: float) -> str:
+        if abs(v) >= 1000:
+            return f"{v:,.1f}".replace(",", " ")
+        return f"{v:.2f}"
+
+    out = [
+        f"Prognoz — SDMX ID {sdmx_id}: {indicator_name or '?'}",
+        f"Mintaqa: {region_name}",
+        f"O'lchov: {unit}",
+        "",
+        f"Asos oraliq: {start_year}–{end_year} ({span_years} yil), CAGR = {cagr*100:+.2f}%",
+        f"Oxirgi kuzatuv: {latest_year} → {fmt(latest_value)} {unit}",
+        f"Prognoz {target_year}: ≈ {fmt(projected)} {unit}  ({horizon} yil oldinga)",
+        "",
+        "⚠ Bu RASMIY SIAT prognozi EMAS. Oxirgi yillar CAGR'iga asoslangan oddiy "
+        "ekstrapolyatsiya. Haqiqiy ko'rsatkich tashqi omillarga (migratsiya, siyosat "
+        "o'zgarishi, demografik tendentsiyalar) qarab sezilarli farq qilishi mumkin.",
+    ]
+    return "\n".join(out)

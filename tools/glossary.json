@@ -1,0 +1,34 @@
+{
+  "_comment": "Uzbek/Russian/English synonym map for SDMX terminology. Keys are canonical Uzbek terms; values are alternative phrasings the LLM might emit or that exist in the indicator names. Used by query_expander to bias semantic search recall.",
+
+  "tug'ilish": ["tug'ilganlar", "tug'ilgan", "chaqaloq", "rojayet", "rojdaemost", "live births", "natality", "birth", "тугилиш", "рождаемость", "родившиеся"],
+  "vafot": ["o'lim", "o'limlar", "vafot etganlar", "vafot etgan", "smertnost", "mortality", "deaths", "death rate", "смертность", "умершие"],
+
+  "aholi": ["doimiy aholi", "aholisi", "naseleniye", "population", "permanent population", "resident population", "населения", "население"],
+  "shahar aholisi": ["urban population", "shahar", "gorodskoe naseleniye", "городское население"],
+  "qishloq aholisi": ["rural population", "qishloq", "selskoe naseleniye", "сельское население"],
+
+  "ish haqi": ["maosh", "wage", "salary", "zarplata", "average wage", "ish haqi miqdori", "зарплата", "заработная плата"],
+  "ishsizlik": ["unemployment", "ishsiz", "bezrabotitsa", "ishsizlik darajasi", "unemployment rate", "безработица"],
+  "band aholi": ["employed", "employment", "zanyatost", "ish bilan band", "занятые", "занятость"],
+
+  "yim": ["yalpi ichki mahsulot", "gdp", "gross domestic product", "gross national product", "vvp", "ВВП", "yalpi hududiy mahsulot", "gross regional product"],
+  "investitsiya": ["asosiy kapital", "kapital qo'yilmalar", "investments", "fixed capital", "investitsii", "инвестиции"],
+  "eksport": ["chiqarish", "tashqi savdo eksporti", "exports", "exportt", "экспорт"],
+  "import": ["import", "kirish", "imports", "importt", "импорт"],
+  "tashqi savdo": ["foreign trade", "external trade", "trade balance", "savdo aylanmasi", "внешняя торговля"],
+  "inflyatsiya": ["narxlar", "narx indeksi", "inflation", "cpi", "consumer price index", "iste'mol narxlari", "инфляция", "индекс цен"],
+
+  "sanoat": ["industrial", "industry", "manufacturing", "promyshlennost", "промышленность"],
+  "qishloq xo'jaligi": ["agriculture", "agricultural", "qishloq xojaligi", "selskoe xozyaystvo", "сельское хозяйство"],
+  "qurilish": ["construction", "stroitelstvo", "строительство"],
+  "xizmatlar": ["services", "uslugi", "services sector", "услуги"],
+
+  "ta'lim": ["maktab", "talim", "education", "schools", "obrazovaniye", "образование"],
+  "salomatlik": ["sog'liq", "tibbiyot", "health", "healthcare", "medicine", "zdorove", "здоровье", "медицина"],
+  "transport": ["yo'l", "yul", "transport", "transportation", "транспорт"],
+
+  "viloyat": ["viloyati", "region", "oblast", "область"],
+  "tuman": ["tumani", "district", "rayon", "район"],
+  "shahar": ["shahri", "city", "gorod", "город"]
+}

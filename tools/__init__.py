@@ -29,6 +29,7 @@ from .sdmx_data_retrieval_tool import (
     inspect_sdmx_data,
     rank_rows_by_value,
     calculate_yearly_growth,
+    forecast_value,
 )
 from .sdmx_statistics_tool import (
     calculate_statistics,
@@ -64,6 +65,7 @@ __all__ = [
     "inspect_sdmx_data",
     "rank_rows_by_value",
     "calculate_yearly_growth",
+    "forecast_value",
     "calculate_statistics",
     "calculate_cagr",
     "compare_regions",

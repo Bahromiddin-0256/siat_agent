@@ -1,6 +1,7 @@
 """Shared file loading utilities for SDMX tools."""
 
 import json
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
@@ -10,6 +11,18 @@ logger = setup_logger(__name__)
 
 # Resolved base directory for SDMX data files — used for path traversal checks
 _SDMX_BASE_DIR = Path("jsons/sdmxs").resolve()
+
+# In-memory cache of loaded SDMX files. The catalog has ~3000 indicators but
+# realistically only a few dozen are touched per session, so the cache stays
+# small. Files are static during process lifetime, so no invalidation needed.
+_SDMX_CACHE: dict[int, Any] = {}
+_SDMX_CACHE_LOCK = threading.Lock()
+
+
+def clear_sdmx_cache() -> None:
+    """Clear the in-memory SDMX file cache (mainly for tests)."""
+    with _SDMX_CACHE_LOCK:
+        _SDMX_CACHE.clear()
 
 
 def load_json_safe(file_path: Path, default: Any = None) -> Any:
@@ -80,4 +93,16 @@ def load_sdmx_data_file(sdmx_id: int, base_dir: str = "jsons/sdmxs") -> Optional
     if not file_path.exists():
         return None
 
-    return load_json_safe(file_path, default=None)
+    # Cache by sdmx_id only — base_dir is locked to one root above, so the id
+    # uniquely identifies a file. Concurrent first-loads of the same id may
+    # race and parse twice; that's harmless (deterministic result) and faster
+    # than a per-id lock.
+    cached = _SDMX_CACHE.get(sdmx_id)
+    if cached is not None:
+        return cached
+
+    data = load_json_safe(file_path, default=None)
+    if data is not None:
+        with _SDMX_CACHE_LOCK:
+            _SDMX_CACHE[sdmx_id] = data
+    return data

@@ -12,6 +12,7 @@ import json
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
 
 from .llm import base_llm, _sanitize_tool_call_args
 from .logger import setup_logger
@@ -30,6 +31,7 @@ from tools import (
     inspect_sdmx_data,
     rank_rows_by_value,
     calculate_yearly_growth,
+    forecast_value,
     calculate_statistics,
     calculate_cagr,
     compare_regions,
@@ -140,6 +142,7 @@ def create_sdmx_agent(
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata
         rank_rows_by_value,  # Sorted ranking — use for max/min/top/bottom queries
+        forecast_value,  # CAGR-based projection for explicit "future year" questions
 
         # Time series analysis tools
         calculate_yearly_growth,  # Calculate year-over-year growth rates
@@ -169,12 +172,13 @@ indicators by selecting the right tool, executing it, and explaining the result.
 3. **Always include units** returned by the tool (kishi, mlrd. so'm, mln so'm, etc.).
 4. **Prefer "jami" (total)** when several variants exist (e.g. "jami" vs "qiz bolalar" /
    "o'g'il bolalar" / "shahar" / "qishloq"). If still ambiguous, ask the user.
-5. **End every data response with a reference list:**
+5. **End every data response with a reference list, including a direct SIAT link:**
    ```
    ---
    Foydalanilgan ko'rsatkichlar:
-   - SDMX ID <id>: <Indicator Name>
+   - SDMX ID <id>: <Indicator Name> — https://siat.stat.uz/reports-filed/<id>/table-data
    ```
+   The link lets users verify the number on the official site. Always include it.
 6. For general "what data exists?" questions, do not call tools — point to
    https://siat.stat.uz and optionally suggest `list_sdmx_categories`.
 7. **NEVER eyeball a list of values to pick max/min/top/bottom.** If the user
@@ -284,7 +288,12 @@ User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
     supports_tools = hasattr(base_llm, 'bind_tools')
     logger.info(f"Model supports bind_tools: {supports_tools}")
 
-    agent = create_agent(base_llm, tools)
+    # In-memory checkpointer keeps conversation state per `thread_id` so a WS
+    # session can do follow-up questions ("...endi Samarqand-chi?") without the
+    # client re-sending earlier turns. Each WS connection gets its own UUID-
+    # based thread id (see main.py), so cross-session leakage is impossible.
+    checkpointer = MemorySaver()
+    agent = create_agent(base_llm, tools, checkpointer=checkpointer)
     logger.info(f"SDMX agent created successfully with {len(tools)} tools")
 
     # Create tools map for fallback XML function calling
@@ -292,6 +301,27 @@ User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
     logger.info(f"Created tools_map with {len(tools_map)} tools")
 
     return agent, system_prompt, tools_map
+
+
+def _build_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
+    """Construct input messages, honouring the checkpointer's existing state.
+
+    First turn in a thread → [SystemMessage, HumanMessage]
+    Follow-up turns       → [HumanMessage] only (system + history already in state)
+    """
+    has_history = False
+    try:
+        snapshot = agent.get_state(config)
+        existing = snapshot.values.get("messages") if snapshot and snapshot.values else None
+        has_history = bool(existing)
+    except Exception as e:
+        logger.debug(f"Could not read checkpointer state: {e}")
+
+    msgs: list[BaseMessage] = []
+    if not has_history and system_prompt:
+        msgs.append(SystemMessage(content=system_prompt))
+    msgs.append(HumanMessage(content=question))
+    return msgs
 
 
 async def run_agent_async(
@@ -318,11 +348,7 @@ async def run_agent_async(
     logger.info(f"Running agent async with question: {question[:100]}...")
     config = {"configurable": {"thread_id": thread_id or "default"}}
 
-    # Build messages with system prompt
-    messages = []
-    if system_prompt:
-        messages.append(SystemMessage(content=system_prompt))
-    messages.append(HumanMessage(content=question))
+    messages = _build_input_messages(agent, config, system_prompt, question)
 
     result = await agent.ainvoke(
         {"messages": messages},
@@ -377,11 +403,7 @@ def run_agent(
     logger.info(f"Running agent sync with question: {question[:100]}...")
     config = {"configurable": {"thread_id": thread_id or "default"}}
 
-    # Build messages with system prompt
-    messages = []
-    if system_prompt:
-        messages.append(SystemMessage(content=system_prompt))
-    messages.append(HumanMessage(content=question))
+    messages = _build_input_messages(agent, config, system_prompt, question)
 
     result = agent.invoke(
         {"messages": messages},
@@ -541,10 +563,7 @@ async def run_agent_async_stream(
     config = {"configurable": {"thread_id": thread_id or "default"}}
 
     try:
-        messages: list[BaseMessage] = []
-        if system_prompt:
-            messages.append(SystemMessage(content=system_prompt))
-        messages.append(HumanMessage(content=question))
+        messages = _build_input_messages(agent, config, system_prompt, question)
 
         all_messages: list[BaseMessage] = []
         seen_message_ids: set[int] = set()
