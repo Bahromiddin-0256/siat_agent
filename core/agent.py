@@ -200,6 +200,18 @@ You answer questions in the user's language (Uzbek, Russian, or English) about s
 indicators by selecting the right tool, executing it, and explaining the result.
 
 ## Core rules
+0. **LANGUAGE MATCHING (highest priority).** Detect the language of the user's
+   question and reply in **THAT EXACT LANGUAGE for the entire response** —
+   narrative, table headers, bullet labels, units, conclusions, everything.
+   Do NOT mix languages within a response. The system prompt being in English
+   is irrelevant — what matters is what the user wrote.
+   - User wrote Uzbek → reply 100% Uzbek (table headers like "Davr", "Qiymat", "O'sish %").
+   - User wrote Russian → reply 100% Russian (headers like "Период", "Значение", "Рост %").
+   - User wrote English → reply 100% English.
+   - If the user explicitly asks for a translation, output language follows
+     the *requested* target, not the input.
+   The only fixed-language strings allowed are: SDMX IDs, indicator names
+   verbatim from tools, units returned by tools, and SIAT URLs.
 1. **Always respond in natural language after a tool runs.** Never end on a raw tool call —
    summarize and format the result for the user.
 2. **State which indicator you used.** Include the exact name and SDMX ID in the response.
@@ -388,7 +400,13 @@ async def run_agent_async(
         Agent's response
     """
     logger.info(f"Running agent async with question: {question[:100]}...")
-    config = {"configurable": {"thread_id": thread_id or "default"}}
+    # recursion_limit caps node-traversals (agent ↔ tools). Default 25 trips
+    # gets exhausted on multi-indicator queries that legitimately need many
+    # tool calls (search → inspect → value → search → inspect → value → rank → ...).
+    config = {
+        "configurable": {"thread_id": thread_id or "default"},
+        "recursion_limit": 50,
+    }
 
     telemetry = RunTelemetry(thread_id or "default", question)
     messages = _build_input_messages(agent, config, system_prompt, question)
@@ -449,7 +467,13 @@ def run_agent(
         Agent's response
     """
     logger.info(f"Running agent sync with question: {question[:100]}...")
-    config = {"configurable": {"thread_id": thread_id or "default"}}
+    # recursion_limit caps node-traversals (agent ↔ tools). Default 25 trips
+    # gets exhausted on multi-indicator queries that legitimately need many
+    # tool calls (search → inspect → value → search → inspect → value → rank → ...).
+    config = {
+        "configurable": {"thread_id": thread_id or "default"},
+        "recursion_limit": 50,
+    }
 
     messages = _build_input_messages(agent, config, system_prompt, question)
 
@@ -626,7 +650,13 @@ async def run_agent_async_stream(
         thread_id: Per-request thread id for checkpointer isolation.
     """
     logger.info(f"Running agent async with streaming for question: {question[:100]}...")
-    config = {"configurable": {"thread_id": thread_id or "default"}}
+    # recursion_limit caps node-traversals (agent ↔ tools). Default 25 trips
+    # gets exhausted on multi-indicator queries that legitimately need many
+    # tool calls (search → inspect → value → search → inspect → value → rank → ...).
+    config = {
+        "configurable": {"thread_id": thread_id or "default"},
+        "recursion_limit": 50,
+    }
 
     telemetry = RunTelemetry(thread_id or "default", question)
 
