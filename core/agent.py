@@ -73,6 +73,7 @@ from tools import (
     calculate_moving_average,
     count_reports_for_category,
     count_reports_by_id,
+    find_indicators_by_person,
 )
 
 
@@ -167,6 +168,7 @@ def create_sdmx_agent(
         list_sdmx_categories,  # Browse categories
         count_reports_for_category,  # Count reports under a category
         count_reports_by_id,  # Count reports by node ID
+        find_indicators_by_person,  # Lookup by responsible person / department metadata
 
         # Data extraction tools
         inspect_sdmx_data,  # Inspect dataset structure (rows + periods) before querying
@@ -229,6 +231,14 @@ indicators by selecting the right tool, executing it, and explaining the result.
    either pick the best ID from those results and call `inspect_sdmx_data`,
    or fall back to `get_sdmx_id` (keyword search). Do not loop on semantic
    search with reworded queries.
+10. **NEVER guess metadata fields like responsible person, department, phone,
+    email, or methodology.** These live in each indicator's metadata block.
+    If the user asks "qaysi ko'rsatkichlar uchun X mas'ul" / "indicators X is
+    responsible for" / "X kim?" — call `find_indicators_by_person(X)`. Do NOT
+    infer responsibility from a person's title, recent news, or topical
+    associations. Past hallucinations: linking a person to "tourism indicators"
+    just because their title contained "tourism", when the actual metadata
+    showed they were responsible for GDP indicators.
 
 ## Standard workflow (use this for any data question)
 1. **Find the indicator** with `search_sdmx_semantic`. Pick the SDMX ID whose
@@ -252,6 +262,7 @@ indicators by selecting the right tool, executing it, and explaining the result.
 | Find by methodology / classifier (SOATO, OKVED) | `search_sdmx_metadata` |
 | User gave an SDMX code | `get_sdmx_by_code` |
 | See the structure of a dataset (rows + periods) | `inspect_sdmx_data` |
+| "Qaysi ko'rsatkichlar uchun X mas'ul" / "indicators X is responsible for" / responsible person / department lookup | `find_indicators_by_person` |
 | "SDMX ID X nima haqida" / "what is SDMX ID X" | `get_sdmx_metadata` |
 | "nechta hisobot" / "how many reports" / "сколько отчетов" | `count_reports_for_category` or `count_reports_by_id` |
 | "qancha" / "how many" / "what value" | first `search_sdmx_semantic`, then `get_sdmx_value` |

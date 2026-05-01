@@ -45,6 +45,7 @@ from .sdmx_count_tool import (
     count_reports_for_category,
     count_reports_by_id,
 )
+from .people_search_tool import find_indicators_by_person
 
 __all__ = [
     "get_sdmx_id",
@@ -76,5 +77,6 @@ __all__ = [
     "calculate_moving_average",
     "count_reports_for_category",
     "count_reports_by_id",
+    "find_indicators_by_person",
 ]
 
