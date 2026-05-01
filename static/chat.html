@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SDMX ID Retriever Chat</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -146,6 +148,78 @@
         .message.user .message-content pre {
             background-color: rgba(255, 255, 255, 0.2);
         }
+
+        /* Markdown rendering inside bot bubbles */
+        .message.bot .message-content p {
+            margin: 0 0 8px;
+        }
+        .message.bot .message-content p:last-child {
+            margin-bottom: 0;
+        }
+        .message.bot .message-content h1,
+        .message.bot .message-content h2,
+        .message.bot .message-content h3,
+        .message.bot .message-content h4 {
+            margin: 12px 0 6px;
+            line-height: 1.25;
+            font-weight: 600;
+        }
+        .message.bot .message-content h1 { font-size: 1.25rem; }
+        .message.bot .message-content h2 { font-size: 1.15rem; }
+        .message.bot .message-content h3 { font-size: 1.05rem; }
+        .message.bot .message-content h4 { font-size: 1rem; }
+        .message.bot .message-content ul,
+        .message.bot .message-content ol {
+            margin: 6px 0 8px;
+            padding-left: 22px;
+        }
+        .message.bot .message-content li { margin: 2px 0; }
+        .message.bot .message-content code {
+            background-color: rgba(0, 0, 0, 0.06);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 0.92em;
+        }
+        .message.bot .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        .message.bot .message-content blockquote {
+            border-left: 3px solid #ccc;
+            margin: 6px 0;
+            padding: 2px 10px;
+            color: #555;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        .message.bot .message-content table {
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 0.92em;
+            display: block;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        .message.bot .message-content th,
+        .message.bot .message-content td {
+            border: 1px solid #d0d4dc;
+            padding: 4px 8px;
+            text-align: left;
+        }
+        .message.bot .message-content th {
+            background-color: #f4f6fa;
+            font-weight: 600;
+        }
+        .message.bot .message-content hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 10px 0;
+        }
+        .message.bot .message-content a {
+            color: #4a6cf7;
+            text-decoration: none;
+        }
+        .message.bot .message-content a:hover { text-decoration: underline; }
 
         .typing-indicator {
             display: none;
@@ -803,10 +877,11 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
 
-            if (text.includes('\n') || text.includes('```')) {
-                contentDiv.innerHTML = formatMessage(text);
-            } else {
+            if (isUser) {
+                // User input is plain text — never render as markdown.
                 contentDiv.textContent = text;
+            } else {
+                contentDiv.innerHTML = formatMessage(text);
             }
 
             messageDiv.appendChild(contentDiv);
@@ -814,10 +889,28 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        // Render LLM-produced markdown safely. We pipe through DOMPurify because
+        // the content is untrusted; without it, a model could inject script tags.
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                gfm: true,        // tables, fenced code, autolinks
+                breaks: true,     // newline → <br>, matches chat conventions
+                headerIds: false, // we don't need anchor links inside chat bubbles
+                mangle: false,
+            });
+        }
+
         function formatMessage(text) {
-            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre>$2</pre>');
-            text = text.replace(/\n/g, '<br>');
-            return text;
+            if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                // Fallback: minimal escaping + linebreaks if libraries failed to load.
+                const escaped = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return escaped.replace(/\n/g, '<br>');
+            }
+            const html = marked.parse(text);
+            return DOMPurify.sanitize(html);
         }
 
         function showTyping() {

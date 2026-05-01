@@ -81,17 +81,40 @@ _REGION_TYPE_MAP = {
 }
 
 
+# Uzbek text in this corpus mixes several apostrophe glyphs interchangeably:
+#   ASCII '   U+0027   (LLM output, keyboard input)
+#   curly '   U+2019   (typographic; common in the dataset)
+#   curly `   U+2018   (occasional)
+#   modifier ʻ U+02BB  (official Uzbek Latin orthography)
+#   modifier ʼ U+02BC  (variant)
+#   backtick ` U+0060   (sometimes used for o`/g`)
+# Substring matching fails across these. Normalise them all to ASCII '.
+_APOSTROPHE_TRANSLATION = str.maketrans({
+    "’": "'",
+    "‘": "'",
+    "ʻ": "'",
+    "ʼ": "'",
+    "`": "'",
+})
+
+
+def _normalize_apostrophes(text: str) -> str:
+    return text.translate(_APOSTROPHE_TRANSLATION)
+
+
 def _normalize_region_tokens(query: str) -> list[str]:
-    """Lowercase, split, and map dictionary forms to data forms."""
-    return [_REGION_TYPE_MAP.get(t, t) for t in query.lower().split() if t]
+    """Lowercase, normalize apostrophes, split, and map dictionary forms to data forms."""
+    normalized = _normalize_apostrophes(query).lower()
+    return [_REGION_TYPE_MAP.get(t, t) for t in normalized.split() if t]
 
 
 def _row_search_blob(row: dict) -> str:
     """Concatenate all classifier name variants for substring/token matching."""
-    return " ".join(
+    raw = " ".join(
         str(row.get(k, ""))
         for k in ("Klassifikator", "Klassifikator_ru", "Klassifikator_en", "Klassifikator_uzc")
-    ).lower()
+    )
+    return _normalize_apostrophes(raw).lower()
 
 
 def _row_matches_region(row: dict, query: str) -> bool:
@@ -512,7 +535,34 @@ def inspect_sdmx_data(sdmx_id: int) -> str:
     out.append(f"Qatorlar ({row_count}):")
     out.extend(label_lines)
 
+    # Surface the dataset's granularity so the agent doesn't waste a tool call
+    # discovering it the hard way.
     out.append("")
+    if row_count == 1:
+        only_name = (
+            data_section[0].get("Klassifikator")
+            or data_section[0].get("Klassifikator_ru")
+            or data_section[0].get("Klassifikator_en")
+            or "?"
+        )
+        out.append(
+            f"⚠ Diqqat: bu dataset faqat 1 darajada ('{only_name}') — viloyat/tuman kesimida "
+            "ma'lumot YO'Q. Hududiy so'rov uchun boshqa indikatorni qidiring."
+        )
+    elif row_count >= 14 and any(
+        "viloyat" in (r.get("Klassifikator") or "").lower()
+        or "shahri" in (r.get("Klassifikator") or "").lower()
+        for r in data_section[:30]
+    ):
+        out.append(
+            "ℹ Bu dataset hududiy kesimda — qator nomlarini AYNAN yuqoridagi shaklda ishlating "
+            "(masalan: 'Toshkent shahri', 'Andijon viloyati')."
+        )
+    else:
+        out.append(
+            "ℹ Qator nomlarini AYNAN yuqoridagi shaklda ishlating (LLM grammatik shaklini emas)."
+        )
+
     out.append(
         "Keyingi qadam: aniq qiymat uchun `get_sdmx_value(sdmx_id, year=<davr>, region=<qator nomi>)`"
         " yoki o'sish uchun `calculate_yearly_growth(...)` ni shu nom va davrlardan foydalanib chaqiring."
