@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ollama_model: str
     ollama_embedding_model: str = ""  # No longer used; BGE-M3 handles embeddings
     ollama_base_url: str = "http://localhost:11434"
-    port: int = 8000
+    port: int = 8001
     groq_model: str = ""
     groq_api_key: str = ""
     open_router_api_key: str = ""

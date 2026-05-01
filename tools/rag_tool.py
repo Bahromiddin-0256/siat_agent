@@ -27,6 +27,7 @@ from core.settings import settings
 from core.logger import setup_logger
 from tools.embedder import encode_dense_sparse, encode_query
 from tools.qdrant_shared_client import get_shared_client
+from tools.query_expander import expand_query
 
 logger = setup_logger(__name__)
 
