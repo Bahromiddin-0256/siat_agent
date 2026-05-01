@@ -9,6 +9,7 @@ hang the whole suite.
 """
 import asyncio
 import json
+import re
 import sys
 import time
 
@@ -18,12 +19,63 @@ URI = "ws://localhost:8001/ws"
 PER_QUESTION_TIMEOUT = 180.0
 
 QUESTIONS = [
-    ("L1-region",      "2020-yildan beri Toshkent shahar aholisi qancha o'sgan, mutlaq sonda va foizda?"),
-    ("L2-two-indic",   "2023-yilda O'zbekistonda har 1000 kishiga to'g'ri keladigan tug'ilganlar koeffitsientini hisoblang."),
-    ("L2-quarterly",   "2025-yilning 3-choragida o'lim sabablari ichida eng yuqori va eng past ulushga ega kategoriyalarning farqi necha barobar?"),
-    ("L4-english",     "What was the unemployment rate in Tashkent city in Q2 2025?"),
-    ("L5-nonsense",    "Qoraqalpog'istonning 2024-yildagi YIM hissasi ekologiya statistikasiga qancha?"),
+    {
+        "label": "L1-region",
+        "query": "2020-yildan beri Toshkent shahar aholisi qancha o'sgan, mutlaq sonda va foizda?",
+        # Tashkent population grew from ~2 571.7 (2020) to ~3 112.8 (2025) ming kishi.
+        "must_contain": ["248", "Toshkent", "2020"],
+        "must_match_any": [r"541", r"21[.,]0?\d?\s*%"],  # delta ≈541 ming, ≈21%
+        "must_not_contain": [],
+    },
+    {
+        "label": "L2-two-indic",
+        "query": "2023-yilda O'zbekistonda har 1000 kishiga to'g'ri keladigan tug'ilganlar koeffitsientini hisoblang.",
+        "must_contain": ["1000"],
+        # Birth rate ≈ 26.7 per 1000. Allow 26.6–26.8.
+        "must_match_any": [r"26[.,][6-8]"],
+        "must_not_contain": [],
+    },
+    {
+        "label": "L2-quarterly",
+        "query": "2025-yilning 3-choragida o'lim sabablari ichida eng yuqori va eng past ulushga ega kategoriyalarning farqi necha barobar?",
+        "must_contain": ["4530", "Qon aylanish"],
+        # Correct ratio is 77 241 / 1 197 = 64.53. Reject the old wrong 17.86.
+        "must_match_any": [r"64[.,]5\d?", r"64[.,]5"],
+        "must_not_contain": [r"17[.,]8\d"],
+    },
+    {
+        "label": "L4-english",
+        "query": "What was the unemployment rate in Tashkent city in Q2 2025?",
+        # Should admit data is unavailable (yearly only, not quarterly).
+        "must_match_any": [r"yo'q|not available|emas|mavjud emas|quarterly"],
+        "must_contain": [],
+        "must_not_contain": [],
+    },
+    {
+        "label": "L5-nonsense",
+        "query": "Qoraqalpog'istonning 2024-yildagi YIM hissasi ekologiya statistikasiga qancha?",
+        # Should ask for clarification, not silently reframe.
+        "must_match_any": [r"aniqlash|clarif|aralash|ikki .*soha|qaysi.*ko'rsatkich"],
+        "must_contain": [],
+        "must_not_contain": [],
+    },
 ]
+
+
+def evaluate(spec: dict, final: str) -> tuple[bool, list[str]]:
+    """Apply must_contain / must_match_any / must_not_contain rules."""
+    failures: list[str] = []
+    text = final or ""
+    for s in spec.get("must_contain", []):
+        if s not in text:
+            failures.append(f"missing literal '{s}'")
+    matchers = spec.get("must_match_any", [])
+    if matchers and not any(re.search(p, text, re.IGNORECASE) for p in matchers):
+        failures.append(f"none of patterns matched: {matchers}")
+    for p in spec.get("must_not_contain", []):
+        if re.search(p, text, re.IGNORECASE):
+            failures.append(f"forbidden pattern matched: {p}")
+    return (len(failures) == 0, failures)
 
 
 async def run_question(label: str, query: str) -> dict:
@@ -92,16 +144,28 @@ def print_report(r: dict) -> None:
 
 async def main() -> int:
     overall = []
-    for label, q in QUESTIONS:
-        r = await run_question(label, q)
+    for spec in QUESTIONS:
+        r = await run_question(spec["label"], spec["query"])
+        passed, failures = evaluate(spec, r["final"])
+        r["passed"] = passed and not r["error"]
+        r["failures"] = failures
         overall.append(r)
         print_report(r)
+        if failures:
+            print("  ASSERTION FAILURES:")
+            for f in failures:
+                print(f"    - {f}")
+            print()
+
     print("=" * 78)
     print("SUMMARY")
     for r in overall:
-        flag = "OK " if r["final"] and not r["error"] else "FAIL"
-        print(f"  {flag}  {r['label']:<14} {len(r['tools'])} tools, {r['elapsed']:.1f}s")
-    return 0 if all(r["final"] and not r["error"] for r in overall) else 1
+        flag = "PASS" if r["passed"] else "FAIL"
+        extra = f"  ({'; '.join(r['failures'])})" if r.get("failures") else ""
+        print(f"  {flag}  {r['label']:<14} {len(r['tools'])} tools, {r['elapsed']:.1f}s{extra}")
+    failures = [r for r in overall if not r["passed"]]
+    print(f"\n{len(overall) - len(failures)}/{len(overall)} passed")
+    return 0 if not failures else 1
 
 
 if __name__ == "__main__":

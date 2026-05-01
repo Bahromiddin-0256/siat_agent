@@ -9,6 +9,35 @@ from datetime import datetime
 import re
 import json
 
+
+def _extract_response_metadata(final_text: str, tools_used: list[str]) -> dict:
+    """Pull lightweight structured fields out of the final markdown response.
+
+    Frontends can use this to render side-cards, badges, or "verify on SIAT"
+    buttons without re-parsing the full text. Best-effort regex — when nothing
+    matches, fields are omitted.
+    """
+    metadata: dict = {}
+
+    # SDMX IDs the answer depends on (from the "Foydalanilgan ko'rsatkichlar" block
+    # or anywhere "SDMX ID 1234" appears).
+    ids = sorted(set(int(m) for m in re.findall(r"SDMX\s*ID\s*(\d+)", final_text)))
+    if ids:
+        metadata["sdmx_ids"] = ids
+        metadata["siat_links"] = [
+            f"https://siat.stat.uz/reports-filed/{i}/table-data" for i in ids
+        ]
+
+    # Periods referenced (year, quarter, month).
+    periods = sorted(set(re.findall(r"\b(20\d{2}(?:-(?:Q[1-4]|M\d{1,2}|\d{2}))?)", final_text)))
+    if periods:
+        metadata["periods"] = periods[:8]
+
+    if tools_used:
+        metadata["tools_used"] = list(dict.fromkeys(tools_used))  # dedupe, preserve order
+
+    return metadata
+
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
@@ -16,6 +45,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from .llm import base_llm, _sanitize_tool_call_args
 from .logger import setup_logger
+from .telemetry import RunTelemetry
 from tools.chart_utils import pop_charts
 
 logger = setup_logger(__name__)
@@ -35,7 +65,8 @@ from tools import (
     calculate_statistics,
     calculate_cagr,
     compare_regions,
-    rank_regions,
+    # rank_regions is deprecated — superseded by rank_rows_by_value, which works
+    # for any dataset (regions OR categories) and any period granularity.
     calculate_percentage_share,
     compare_years,
     calculate_period_total,
@@ -153,7 +184,8 @@ def create_sdmx_agent(
 
         # Regional comparison tools
         compare_regions,  # Compare multiple regions for a year
-        rank_regions,  # Rank regions by value
+        # rank_regions removed — rank_rows_by_value is more general and applies
+        # to any dataset (regions or categories) and any period granularity.
         calculate_percentage_share,  # Regional percentage distribution
 
         # Comparison tools
@@ -228,8 +260,7 @@ indicators by selecting the right tool, executing it, and explaining the result.
 | "CAGR" / "yillik o'rtacha o'sish" | `calculate_cagr` |
 | "solishtir" / "compare" + regions | `compare_regions` |
 | "solishtir" / "compare" + years | `compare_years` |
-| "reyting" / "ranking" / "eng yuqori" / "eng past" / max / min / top N (any dataset) | `rank_rows_by_value` |
-| "reyting" between **regions specifically** for `compare_regions`-style data | `rank_regions` |
+| "reyting" / "ranking" / "eng yuqori" / "eng past" / max / min / top N | `rank_rows_by_value` |
 | "ulush" / "share" / "taqsimot" | `calculate_percentage_share` |
 | "jami" / "total" over a period | `calculate_period_total` |
 | "trend" / "silliq" / "smoothed" | `calculate_moving_average` |
@@ -348,12 +379,18 @@ async def run_agent_async(
     logger.info(f"Running agent async with question: {question[:100]}...")
     config = {"configurable": {"thread_id": thread_id or "default"}}
 
+    telemetry = RunTelemetry(thread_id or "default", question)
     messages = _build_input_messages(agent, config, system_prompt, question)
 
-    result = await agent.ainvoke(
-        {"messages": messages},
-        config=config,
-    )
+    try:
+        result = await agent.ainvoke(
+            {"messages": messages},
+            config=config,
+        )
+    except Exception as e:
+        telemetry.fail(f"{type(e).__name__}: {e}")
+        telemetry.close()
+        raise
     logger.info("Agent invocation completed")
 
     # Log the result structure
@@ -431,8 +468,20 @@ def run_agent(
                 sanitized.append(m)
         result["messages"] = sanitized
 
-    # Use extract_final_response for consistent extraction with XML fallback support
-    return extract_final_response(result["messages"], tools_map)
+    # Capture per-tool calls + token usage for telemetry, then return final text.
+    if isinstance(result, dict) and "messages" in result:
+        for m in result["messages"]:
+            if isinstance(m, AIMessage):
+                for tc in (getattr(m, "tool_calls", None) or []):
+                    name = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", None)
+                    args = tc.get("args") if isinstance(tc, dict) else getattr(tc, "args", None)
+                    telemetry.record_tool_call(name, args)
+                usage = getattr(m, "usage_metadata", None)
+                if isinstance(usage, dict):
+                    telemetry.record_token_usage(usage)
+    final = extract_final_response(result["messages"], tools_map)
+    telemetry.close()
+    return final
 
 
 def extract_final_response(messages: list[BaseMessage], tools_map: dict = None) -> str:
@@ -544,118 +593,149 @@ async def run_agent_async_stream(
     thread_id: str | None = None,
 ):
     """
-    Run the agent and yield tool calls / results / final response *as they happen*.
+    Run the agent and stream tool events + final response tokens as they happen.
 
-    Uses `agent.astream(stream_mode="updates")` so each LangGraph node update is
-    surfaced to the client immediately, rather than after the whole run finishes.
+    Uses `agent.astream_events(version="v2")` so we receive token-level chunks
+    of the LLM's final reply, not just complete messages. The frontend can
+    render the answer character-by-character for snappy UX.
+
+    Event types yielded:
+      - tool_start    — model decided to call a tool
+      - tool_result   — tool returned (chart events follow)
+      - chart         — pushed chart payload
+      - response_chunk — incremental text token from the final AI message
+      - response      — full final text (for clients that don't handle chunks)
+      - error         — exception during the run
 
     Args:
-        agent: The compiled agent
-        question: User's question
-        system_prompt: Optional system prompt
-        tools_map: Optional map of tool names to tool functions (for XML fallback)
+        agent: The compiled agent.
+        question: User's question.
+        system_prompt: Optional system prompt (used only on first turn per thread).
+        tools_map: Map of tool names to tool functions (for XML fallback).
         thread_id: Per-request thread id for checkpointer isolation.
-
-    Yields:
-        dict: Streaming messages with type, tool info, and results
     """
     logger.info(f"Running agent async with streaming for question: {question[:100]}...")
     config = {"configurable": {"thread_id": thread_id or "default"}}
 
+    telemetry = RunTelemetry(thread_id or "default", question)
+
     try:
         messages = _build_input_messages(agent, config, system_prompt, question)
 
-        all_messages: list[BaseMessage] = []
-        seen_message_ids: set[int] = set()
         tool_call_count = 0
         tool_result_count = 0
+        tools_used: list[str] = []
+        # Buffer of text emitted as response_chunk events. We aggregate these so
+        # the final `response` event has the full text — clients without
+        # chunk-handling still work.
+        text_buffer: list[str] = []
 
-        async for update in agent.astream(
+        async for event in agent.astream_events(
             {"messages": messages},
             config=config,
-            stream_mode="updates",
+            version="v2",
         ):
-            # update is a dict like {"agent": {"messages": [...]}, ...} keyed by node name
-            for node_name, node_state in update.items():
-                node_messages = (
-                    node_state.get("messages", []) if isinstance(node_state, dict) else []
+            ev_type = event.get("event")
+            data = event.get("data", {}) or {}
+
+            if ev_type == "on_chat_model_stream":
+                chunk = data.get("chunk")
+                # Chunk is an AIMessageChunk; we only stream non-empty text
+                # content (intermediate tool-call-only messages have empty content).
+                content = getattr(chunk, "content", None) if chunk is not None else None
+                if isinstance(content, str) and content:
+                    text_buffer.append(content)
+                    yield {
+                        "type": "response_chunk",
+                        "content": content,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+
+            elif ev_type == "on_tool_start":
+                tool_call_count += 1
+                tool_name = event.get("name")
+                tool_args = data.get("input")
+                if tool_name:
+                    tools_used.append(tool_name)
+                telemetry.record_tool_call(tool_name, tool_args)
+                logger.info(f"Tool call #{tool_call_count}: {tool_name}")
+                yield {
+                    "type": "tool_start",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+            elif ev_type == "on_chat_model_end":
+                # Capture token usage from the model's final aggregated message.
+                msg = data.get("output")
+                usage = (
+                    getattr(msg, "usage_metadata", None)
+                    or (msg.response_metadata.get("token_usage") if msg and getattr(msg, "response_metadata", None) else None)
                 )
-                for raw in node_messages:
-                    try:
-                        msg = _sanitize_tool_call_args(raw)
-                    except (AttributeError, TypeError, ValueError) as e:
-                        logger.warning(f"Failed to sanitize tool call args: {e}")
-                        msg = raw
+                if isinstance(usage, dict):
+                    telemetry.record_token_usage(usage)
 
-                    # Deduplicate: a checkpointer can re-emit the same message across updates.
-                    msg_key = id(msg)
-                    if msg_key in seen_message_ids:
-                        continue
-                    seen_message_ids.add(msg_key)
-                    all_messages.append(msg)
+            elif ev_type == "on_tool_end":
+                tool_result_count += 1
+                output = data.get("output")
+                tool_result = getattr(output, "content", output)
+                if not isinstance(tool_result, str):
+                    tool_result = str(tool_result)
 
-                    if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
-                        for tool_call in msg.tool_calls:
-                            tool_call_count += 1
-                            tool_name = (
-                                tool_call.get("name") if isinstance(tool_call, dict)
-                                else getattr(tool_call, "name", None)
-                            )
-                            tool_args = (
-                                tool_call.get("args") if isinstance(tool_call, dict)
-                                else getattr(tool_call, "args", None)
-                            )
-                            logger.info(f"Tool call #{tool_call_count}: {tool_name}")
-                            yield {
-                                "type": "tool_start",
-                                "tool_name": tool_name,
-                                "tool_args": tool_args,
-                                "timestamp": datetime.now().isoformat(),
-                            }
+                max_length = 10000
+                if len(tool_result) > max_length:
+                    logger.warning(
+                        f"Tool result truncated from {len(tool_result)} to {max_length} chars"
+                    )
+                    tool_result = tool_result[:max_length] + "\n... (truncated)"
 
-                    elif isinstance(msg, ToolMessage):
-                        tool_result_count += 1
-                        tool_result = msg.content
-                        if not isinstance(tool_result, str):
-                            tool_result = str(tool_result)
+                logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
+                yield {
+                    "type": "tool_result",
+                    "tool_result": tool_result,
+                    "timestamp": datetime.now().isoformat(),
+                }
 
-                        max_length = 10000
-                        if len(tool_result) > max_length:
-                            logger.warning(
-                                f"Tool result truncated from {len(tool_result)} to {max_length} chars"
-                            )
-                            tool_result = tool_result[:max_length] + "\n... (truncated)"
-
-                        logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
-                        yield {
-                            "type": "tool_result",
-                            "tool_result": tool_result,
-                            "timestamp": datetime.now().isoformat(),
-                        }
-
-                        for chart in pop_charts():
-                            yield {
-                                "type": "chart",
-                                "chart_data": chart,
-                                "timestamp": datetime.now().isoformat(),
-                            }
+                for chart in pop_charts():
+                    yield {
+                        "type": "chart",
+                        "chart_data": chart,
+                        "timestamp": datetime.now().isoformat(),
+                    }
 
         logger.info(
             f"Streamed {tool_call_count} tool calls and {tool_result_count} tool results"
         )
 
-        final_response = extract_final_response(all_messages, tools_map)
+        # Final aggregated text. If the model streamed nothing (e.g., the
+        # provider doesn't emit chunks), fall back to reading state from
+        # the checkpointer.
+        final_text = "".join(text_buffer).strip()
+        if not final_text:
+            try:
+                snapshot = agent.get_state(config)
+                state_messages = (snapshot.values or {}).get("messages") or []
+                final_text = extract_final_response(state_messages, tools_map)
+            except Exception as e:
+                logger.warning(f"State fallback failed: {e}")
+                final_text = "No response generated."
+
         yield {
             "type": "response",
-            "content": final_response,
+            "content": final_text,
+            "metadata": _extract_response_metadata(final_text, tools_used),
             "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Error in agent streaming: {e}", exc_info=True)
+        telemetry.fail(f"{type(e).__name__}: {e}")
         yield {
             "type": "error",
             "content": f"Error processing request: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }
+    finally:
+        telemetry.close()
 

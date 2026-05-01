@@ -28,6 +28,7 @@ from core.settings import settings, BASE_DIR
 from core.logger import setup_logger
 from tools.embedder import encode_dense_sparse, encode_query
 from tools.qdrant_shared_client import get_shared_client
+from tools.query_expander import expand_query
 
 logger = setup_logger(__name__)
 
@@ -344,7 +345,8 @@ def search_sdmx_metadata(question: str, k: int = 10) -> str:
 
     logger.info(f"Searching metadata for: '{question}' (k={k})")
 
-    dense, sparse = encode_query(question)
+    encoded_query = expand_query(question)
+    dense, sparse = encode_query(encoded_query)
 
     results = _get_metadata_client().query_points(
         collection_name=_COLLECTION,

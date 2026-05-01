@@ -270,7 +270,11 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
         logger.debug(f"Cache hit for semantic search: '{question[:50]}'")
         return cached
 
-    dense, sparse = encode_query(question)
+    # Expand the query with domain synonyms before encoding. The expanded
+    # version is only used for retrieval; the cache key keeps the original
+    # so identical user queries still hit the cache.
+    encoded_query = expand_query(question)
+    dense, sparse = encode_query(encoded_query)
 
     results = _get_client().query_points(
         collection_name=_COLLECTION,

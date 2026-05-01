@@ -815,14 +815,27 @@
                         renderChart(message.chart_data);
                         chatBox.scrollTop = chatBox.scrollHeight;
 
+                    } else if (message.type === 'response_chunk') {
+                        // Stream tokens as they arrive — render the running text
+                        // as markdown so formatting (bold, headings, tables)
+                        // appears progressively rather than at the end.
+                        if (!currentBotMessage) {
+                            const created = createBotMessage();
+                            currentBotMessage = created;
+                        }
+                        currentBotMessage.streamingText = (currentBotMessage.streamingText || '') + (message.content || '');
+                        currentBotMessage.responseDiv.innerHTML = formatMessage(currentBotMessage.streamingText);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+
                     } else if (message.type === 'response') {
-                        // Add final response text
+                        // Final aggregated text — replaces the streamed buffer
+                        // so any partial markdown gets re-rendered cleanly.
                         if (currentBotMessage) {
                             currentBotMessage.responseDiv.innerHTML = formatMessage(message.content);
                             currentBotMessage = null;
                             currentToolStep = null;
                         } else {
-                            // Fallback if no tools were used
+                            // Fallback if no tools were used and no chunks streamed
                             addMessage(message.content, false);
                         }
 
