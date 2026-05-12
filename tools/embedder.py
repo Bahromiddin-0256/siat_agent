@@ -179,3 +179,38 @@ def encode_query(text: str) -> tuple[list[float], dict[int, float]]:
     """Encode a single query string, returning (dense_vec, sparse_weights)."""
     dense_list, sparse_list = encode_dense_sparse([text])
     return dense_list[0], sparse_list[0]
+
+
+def rerank_pairs(query: str, passages: list[str]) -> list[float]:
+    """Score (query, passage) pairs with BGE-M3's combined reranker.
+
+    Uses the already-loaded BGE-M3 model's `compute_score` so we don't pay for
+    a second model — colbert+sparse+dense fusion is the FlagEmbedding-recommended
+    reranking signal and outperforms cosine alone on multilingual short queries
+    (which is exactly the SIAT workload: Uzbek / Russian / English indicator names).
+    """
+    if not passages:
+        return []
+
+    model = get_embedder()
+    pairs = [[query, p] for p in passages]
+    try:
+        scores = model.compute_score(
+            pairs,
+            max_passage_length=256,
+            weights_for_different_modes=[0.4, 0.2, 0.4],  # dense, sparse, colbert
+        )
+    except Exception as e:
+        # If compute_score fails (older FlagEmbedding, dtype mismatch, etc.), fall
+        # back to "no rerank" — return zeros so caller keeps RRF order.
+        logger.warning(f"Reranker compute_score failed, skipping rerank: {e}")
+        return [0.0] * len(passages)
+
+    # When all three modes are requested, compute_score returns a dict; when only
+    # one is requested it returns a list. Normalize to a flat float list.
+    if isinstance(scores, dict):
+        combined = scores.get("colbert+sparse+dense") or scores.get("colbert") or scores.get("dense")
+        if combined is None:
+            return [0.0] * len(passages)
+        return [float(s) for s in combined]
+    return [float(s) for s in scores]

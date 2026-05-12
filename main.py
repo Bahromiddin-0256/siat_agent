@@ -119,8 +119,21 @@ class ConnectionManager:
         window.append(now)
         return True
 
-    async def send_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+    async def send_message(self, message: str, websocket: WebSocket) -> bool:
+        """Send text to a WebSocket; return False if the connection is closed.
+
+        Wrapping the send keeps the streaming loop resilient — a client tab
+        closed mid-response or a network blip shouldn't propagate as a 500
+        error or kill the rest of the request handling.
+        """
+        try:
+            await websocket.send_text(message)
+            return True
+        except (WebSocketDisconnect, RuntimeError) as e:
+            # RuntimeError fires when starlette's WS is already in CLOSED state.
+            logger.info("WebSocket send skipped — client gone (%s)", e)
+            self.disconnect(websocket)
+            return False
 
 
 manager = ConnectionManager()
@@ -468,13 +481,23 @@ async def websocket_endpoint(websocket: WebSocket):
 
             except Exception as e:
                 logger.error("Error processing WebSocket message: %s", e, exc_info=True)
-                await manager.send_message(
+                # send_message returns False if the socket is already gone — in
+                # that case stop the receive loop, otherwise we just keep
+                # raising on every iteration.
+                delivered = await manager.send_message(
                     json.dumps({"type": "error", "content": str(e)}),
                     websocket,
                 )
+                if not delivered:
+                    break
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
+        manager.disconnect(websocket)
+    except Exception as e:
+        # Catch-all so a bug in the streaming path doesn't bubble up as a
+        # FastAPI 500 (which only shows in server logs, not to the user).
+        logger.error("Unhandled WebSocket error: %s", e, exc_info=True)
         manager.disconnect(websocket)
 
 

@@ -13,29 +13,34 @@ import json
 def _extract_response_metadata(final_text: str, tools_used: list[str]) -> dict:
     """Pull lightweight structured fields out of the final markdown response.
 
-    Frontends can use this to render side-cards, badges, or "verify on SIAT"
-    buttons without re-parsing the full text. Best-effort regex — when nothing
-    matches, fields are omitted.
+    Wraps `answer_schema.extract_schema` and returns a dict-shaped view that the
+    frontend already consumes. Empty fields are omitted so the over-the-wire
+    payload stays small for short answers.
     """
+    from .answer_schema import extract_schema  # local import to avoid cycle at import time
+
+    schema = extract_schema(final_text, tools_used)
     metadata: dict = {}
-
-    # SDMX IDs the answer depends on (from the "Foydalanilgan ko'rsatkichlar" block
-    # or anywhere "SDMX ID 1234" appears).
-    ids = sorted(set(int(m) for m in re.findall(r"SDMX\s*ID\s*(\d+)", final_text)))
-    if ids:
-        metadata["sdmx_ids"] = ids
+    if schema.sdmx_ids:
+        metadata["sdmx_ids"] = schema.sdmx_ids
+    if schema.siat_links:
+        metadata["siat_links"] = schema.siat_links
+    elif schema.sdmx_ids:
+        # Synthesize canonical links if the answer cited IDs but didn't include URLs
         metadata["siat_links"] = [
-            f"https://siat.stat.uz/reports-filed/{i}/table-data" for i in ids
+            f"https://siat.stat.uz/reports-filed/{i}/table-data" for i in schema.sdmx_ids
         ]
-
-    # Periods referenced (year, quarter, month).
-    periods = sorted(set(re.findall(r"\b(20\d{2}(?:-(?:Q[1-4]|M\d{1,2}|\d{2}))?)", final_text)))
-    if periods:
-        metadata["periods"] = periods[:8]
-
-    if tools_used:
-        metadata["tools_used"] = list(dict.fromkeys(tools_used))  # dedupe, preserve order
-
+    if schema.periods:
+        metadata["periods"] = schema.periods[:8]
+    if schema.regions:
+        metadata["regions"] = schema.regions
+    if schema.units:
+        metadata["units"] = schema.units
+    if schema.indicator_names:
+        metadata["indicator_names"] = schema.indicator_names
+    metadata["confidence"] = schema.confidence
+    if schema.tools_used:
+        metadata["tools_used"] = schema.tools_used
     return metadata
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -46,6 +51,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from .llm import base_llm, _sanitize_tool_call_args
 from .logger import setup_logger
 from .telemetry import RunTelemetry
+from . import answer_cache
+from .critic import critique, build_retry_message
+from .few_shot import retrieve_examples, format_for_prompt
 from tools.chart_utils import pop_charts
 
 logger = setup_logger(__name__)
@@ -357,25 +365,64 @@ User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
     return agent, system_prompt, tools_map
 
 
-def _build_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
-    """Construct input messages, honouring the checkpointer's existing state.
+def _has_thread_history(agent, config) -> bool:
+    """True if the checkpointer already has messages for this thread.
 
-    First turn in a thread → [SystemMessage, HumanMessage]
-    Follow-up turns       → [HumanMessage] only (system + history already in state)
+    Used to decide whether the answer cache is safe to consult — follow-up
+    turns ("endi Samarqand-chi?") depend on conversation state, so we only
+    cache first-turn answers.
     """
-    has_history = False
     try:
         snapshot = agent.get_state(config)
         existing = snapshot.values.get("messages") if snapshot and snapshot.values else None
-        has_history = bool(existing)
+        return bool(existing)
     except Exception as e:
         logger.debug(f"Could not read checkpointer state: {e}")
+        return False
+
+
+def _build_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
+    """Construct input messages, honouring the checkpointer's existing state.
+
+    First turn in a thread → [SystemMessage (+ few-shots), HumanMessage (+ plan hint)]
+    Follow-up turns       → [HumanMessage] only (system + history already in state)
+    """
+    has_history = _has_thread_history(agent, config)
 
     msgs: list[BaseMessage] = []
     if not has_history and system_prompt:
-        msgs.append(SystemMessage(content=system_prompt))
-    msgs.append(HumanMessage(content=question))
+        # Inject the 2 most-similar curated examples into the system prompt so
+        # the model sees concrete patterns for *this* question shape, not just
+        # the static examples baked into the prompt.
+        try:
+            examples = retrieve_examples(question, top_k=2)
+            extra = format_for_prompt(examples)
+        except Exception as e:
+            logger.debug(f"Few-shot retrieval skipped: {e}")
+            extra = ""
+        msgs.append(SystemMessage(content=system_prompt + extra))
+    # Optionally augment the human message with a plan hint for compound queries.
+    human_content = _augment_question_with_plan(question) if not has_history else question
+    msgs.append(HumanMessage(content=human_content))
     return msgs
+
+
+def _augment_question_with_plan(question: str) -> str:
+    """Hook for the query decomposer (#4). When the question looks compound,
+    prepend a short plan hint so the ReAct loop tackles each part in sequence.
+
+    The decomposer is best-effort — any failure falls back to the original
+    question unchanged. Heuristic gate keeps the LLM cost out of the hot path
+    for the 80%+ of questions that are single-shot.
+    """
+    try:
+        from .query_planner import maybe_plan
+        plan = maybe_plan(question)
+        if plan:
+            return f"{question}\n\n[Internal plan — do NOT echo this verbatim, just follow it]:\n{plan}"
+    except Exception as e:
+        logger.debug(f"Plan hint skipped: {e}")
+    return question
 
 
 async def run_agent_async(
@@ -409,6 +456,16 @@ async def run_agent_async(
     }
 
     telemetry = RunTelemetry(thread_id or "default", question)
+
+    # Answer cache short-circuit: only for first-turn questions (follow-ups
+    # depend on conversation context and can't be safely served from cache).
+    is_first_turn = not _has_thread_history(agent, config)
+    if is_first_turn:
+        cached = answer_cache.get(question)
+        if cached is not None:
+            telemetry.close()
+            return cached
+
     messages = _build_input_messages(agent, config, system_prompt, question)
 
     try:
@@ -443,7 +500,29 @@ async def run_agent_async(
         result["messages"] = sanitized
 
     # Use extract_final_response for consistent extraction with XML fallback support
-    return extract_final_response(result["messages"], tools_map)
+    final = extract_final_response(result["messages"], tools_map)
+
+    # Self-evaluation pass — one retry max. Skip for follow-ups so we don't
+    # confuse the conversation flow with critic-generated retry turns.
+    if is_first_turn:
+        verdict = critique(question, final)
+        if not verdict.ok:
+            logger.info(
+                f"Critic flagged answer ({verdict.severity}): {verdict.issues}. Retrying once."
+            )
+            try:
+                retry_result = await agent.ainvoke(
+                    {"messages": [build_retry_message(verdict)]},
+                    config=config,
+                )
+                retry_final = extract_final_response(retry_result["messages"], tools_map)
+                if retry_final and "no response generated" not in retry_final.lower():
+                    final = retry_final
+            except Exception as e:
+                logger.warning(f"Critic retry failed, keeping original answer: {e}")
+
+        answer_cache.put(question, final)
+    return final
 
 
 def run_agent(
@@ -474,6 +553,14 @@ def run_agent(
         "configurable": {"thread_id": thread_id or "default"},
         "recursion_limit": 50,
     }
+
+    telemetry = RunTelemetry(thread_id or "default", question)
+    is_first_turn = not _has_thread_history(agent, config)
+    if is_first_turn:
+        cached = answer_cache.get(question)
+        if cached is not None:
+            telemetry.close()
+            return cached
 
     messages = _build_input_messages(agent, config, system_prompt, question)
 
@@ -515,6 +602,25 @@ def run_agent(
                 if isinstance(usage, dict):
                     telemetry.record_token_usage(usage)
     final = extract_final_response(result["messages"], tools_map)
+
+    if is_first_turn:
+        verdict = critique(question, final)
+        if not verdict.ok:
+            logger.info(
+                f"Critic flagged answer ({verdict.severity}): {verdict.issues}. Retrying once."
+            )
+            try:
+                retry_result = agent.invoke(
+                    {"messages": [build_retry_message(verdict)]},
+                    config=config,
+                )
+                retry_final = extract_final_response(retry_result["messages"], tools_map)
+                if retry_final and "no response generated" not in retry_final.lower():
+                    final = retry_final
+            except Exception as e:
+                logger.warning(f"Critic retry failed, keeping original answer: {e}")
+
+        answer_cache.put(question, final)
     telemetry.close()
     return final
 
@@ -635,12 +741,13 @@ async def run_agent_async_stream(
     render the answer character-by-character for snappy UX.
 
     Event types yielded:
-      - tool_start    — model decided to call a tool
-      - tool_result   — tool returned (chart events follow)
-      - chart         — pushed chart payload
-      - response_chunk — incremental text token from the final AI message
-      - response      — full final text (for clients that don't handle chunks)
-      - error         — exception during the run
+      - tool_start      — model decided to call a tool
+      - tool_result     — tool returned (chart events follow)
+      - chart           — pushed chart payload
+      - response_chunk  — incremental text token from the final AI message
+      - response        — full final text (for clients that don't handle chunks)
+      - quality_warning — self-evaluation flagged the answer; payload has `issues`
+      - error           — exception during the run
 
     Args:
         agent: The compiled agent.
@@ -661,6 +768,22 @@ async def run_agent_async_stream(
     telemetry = RunTelemetry(thread_id or "default", question)
 
     try:
+        # Answer cache short-circuit (first-turn only). On hit, emit one
+        # `response` event with the cached text and skip the agent run entirely.
+        is_first_turn = not _has_thread_history(agent, config)
+        if is_first_turn:
+            cached = answer_cache.get(question)
+            if cached is not None:
+                yield {
+                    "type": "response",
+                    "content": cached,
+                    "metadata": _extract_response_metadata(cached, []),
+                    "cached": True,
+                    "timestamp": datetime.now().isoformat(),
+                }
+                telemetry.close()
+                return
+
         messages = _build_input_messages(agent, config, system_prompt, question)
 
         tool_call_count = 0
@@ -762,12 +885,37 @@ async def run_agent_async_stream(
                 logger.warning(f"State fallback failed: {e}")
                 final_text = "No response generated."
 
+        # Self-evaluation. For streaming we don't retry (would require
+        # re-streaming, confusing UX). Instead emit a `quality_warning` event
+        # after the final response so the client can show a badge or expand
+        # the issues. Cache only when the critic passed — never persist a
+        # known-bad answer.
+        critic_ok = True
+        critic_issues: list[str] = []
+        if is_first_turn and final_text:
+            verdict = critique(question, final_text)
+            critic_ok = verdict.ok
+            critic_issues = verdict.issues
+            if verdict.ok:
+                answer_cache.put(question, final_text)
+            else:
+                logger.info(
+                    f"Streaming critic flagged ({verdict.severity}): {verdict.issues}"
+                )
+
         yield {
             "type": "response",
             "content": final_text,
             "metadata": _extract_response_metadata(final_text, tools_used),
             "timestamp": datetime.now().isoformat(),
         }
+
+        if not critic_ok and critic_issues:
+            yield {
+                "type": "quality_warning",
+                "issues": critic_issues,
+                "timestamp": datetime.now().isoformat(),
+            }
 
     except Exception as e:
         logger.error(f"Error in agent streaming: {e}", exc_info=True)

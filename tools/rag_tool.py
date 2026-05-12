@@ -25,7 +25,7 @@ from qdrant_client.models import (
 
 from core.settings import settings
 from core.logger import setup_logger
-from tools.embedder import encode_dense_sparse, encode_query
+from tools.embedder import encode_dense_sparse, encode_query, rerank_pairs
 from tools.qdrant_shared_client import get_shared_client
 from tools.query_expander import expand_query
 
@@ -276,25 +276,44 @@ def search_sdmx_semantic(question: str, k: int = 10) -> str:
     encoded_query = expand_query(question)
     dense, sparse = encode_query(encoded_query)
 
+    # Over-fetch from RRF so the reranker has a real candidate pool to choose
+    # from. RRF gives strong recall; cross-encoder rerank gives precision.
+    # Capped at 30 to keep rerank latency under ~300ms on CPU.
+    rerank_pool = min(max(k * 3, 15), 30)
+
     results = _get_client().query_points(
         collection_name=_COLLECTION,
         prefetch=[
-            Prefetch(query=dense, using="dense", limit=k * 2),
+            Prefetch(query=dense, using="dense", limit=rerank_pool * 2),
             Prefetch(
                 query=SparseVector(
                     indices=list(sparse.keys()),
                     values=list(sparse.values()),
                 ),
                 using="sparse",
-                limit=k * 2,
+                limit=rerank_pool * 2,
             ),
         ],
         query=FusionQuery(fusion=Fusion.RRF),
-        limit=k,
+        limit=rerank_pool,
     ).points
 
     if not results:
         return f"No matching SDMX IDs found for: '{question}'"
+
+    # Rerank with the same BGE-M3 model (colbert+dense+sparse fusion). Use the
+    # original user question — not the expanded one — so synonym noise added by
+    # expand_query doesn't bias the cross-encoder.
+    if len(results) > k:
+        passages = [(p.payload or {}).get("text", "") for p in results]
+        scores = rerank_pairs(question, passages)
+        if scores and any(s != 0.0 for s in scores):
+            scored = sorted(
+                zip(results, scores), key=lambda x: x[1], reverse=True
+            )
+            results = [r for r, _ in scored[:k]]
+        else:
+            results = results[:k]
 
     output_lines = [f"Found {len(results)} semantically similar indicator(s):\n"]
 
