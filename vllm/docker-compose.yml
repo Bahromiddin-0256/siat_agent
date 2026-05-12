@@ -1,0 +1,44 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:cu130-nightly
+    container_name: siat-vllm
+    restart: unless-stopped
+    runtime: nvidia
+    ipc: host
+    ports:
+      - "8003:8000"
+    volumes:
+      - ${HF_HOME:-~/.cache/huggingface}:/root/.cache/huggingface
+      - vllm-cache:/root/.cache/vllm
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >-
+      --model Qwen/Qwen3-32B-AWQ
+      --served-model-name qwen3-32b
+      --quantization awq_marlin
+      --dtype bfloat16
+      --kv-cache-dtype fp8
+      --max-model-len 32768
+      --gpu-memory-utilization 0.85
+      --enable-prefix-caching
+      --enable-auto-tool-choice
+      --tool-call-parser hermes
+      --host 0.0.0.0
+      --port 8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 600s
+      retries: 3
+
+volumes:
+  vllm-cache:

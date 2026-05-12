@@ -123,6 +123,21 @@ elif settings.llm_provider == "deepinfra":
         deepinfra_kwargs["streaming"] = False
     _base_llm = ChatOpenAI(**deepinfra_kwargs)
     logger.info(f"DeepInfra LLM initialized with model: {settings.deepinfra_model}")
+elif settings.llm_provider == "vllm":
+    # Local vLLM server (OpenAI-compatible). See vllm/ folder for the Docker setup.
+    # extra_body disables Qwen3's default <think> reasoning block — it interferes
+    # with tool-call parsing and roughly doubles latency for this tool-only agent.
+    vllm_kwargs = {
+        "base_url": settings.vllm_base_url,
+        "api_key": settings.vllm_api_key or "EMPTY",
+        "model": settings.vllm_model,
+        "temperature": _TEMPERATURE,
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    }
+    if _supports_param(ChatOpenAI, "streaming"):
+        vllm_kwargs["streaming"] = False
+    _base_llm = ChatOpenAI(**vllm_kwargs)
+    logger.info(f"vLLM initialized at {settings.vllm_base_url} with model: {settings.vllm_model}")
 else:
     error_msg = f"Unsupported LLM_PROVIDER: {settings.llm_provider}"
     logger.error(error_msg)
