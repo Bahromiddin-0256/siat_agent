@@ -1,9 +1,21 @@
 """Shared BGE-M3 embedder singleton with dense + sparse support."""
 
 import threading
+import warnings
 
 from core.settings import settings
 from core.logger import setup_logger
+
+# Suppress the harmless transformers warning that fires on first reranker call:
+#   "You're using a XLMRobertaTokenizerFast tokenizer. Please note that with a
+#    fast tokenizer, using the `__call__` method is faster than using ... pad ..."
+# FlagEmbedding's `compute_score` uses pad() internally — we can't change that
+# without forking the lib, and the perf hit is negligible for our top-K (~30) rerank.
+warnings.filterwarnings(
+    "ignore",
+    message=r".*XLMRobertaTokenizerFast.*__call__.*pad.*",
+    category=UserWarning,
+)
 
 logger = setup_logger(__name__)
 

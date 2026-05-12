@@ -5,6 +5,7 @@ This tool reads local SDMX data files and extracts specific values
 based on SDMX ID, year, and region/classifier to minimize LLM context.
 """
 
+import difflib
 import re
 from pathlib import Path
 from typing import Optional, List
@@ -115,6 +116,98 @@ def _row_search_blob(row: dict) -> str:
         for k in ("Klassifikator", "Klassifikator_ru", "Klassifikator_en", "Klassifikator_uzc")
     )
     return _normalize_apostrophes(raw).lower()
+
+
+def _suggest_close_region_labels(
+    query: str, data_section: list[dict], n: int = 5
+) -> list[str]:
+    """Return up to `n` row labels that are closest to a missed region query.
+
+    Matches against every classifier variant (uz/ru/en/uzc), so an EN/RU/typoed
+    query can still surface the canonical Uzbek label the data actually uses.
+    Each row appears at most once in the result.
+    """
+    if not query or not data_section:
+        return []
+
+    norm_query = " ".join(_normalize_region_tokens(query))
+    if not norm_query:
+        return []
+
+    blob_to_display: dict[str, str] = {}
+    blobs: list[str] = []
+    for row in data_section:
+        if not isinstance(row, dict):
+            continue
+        display = (
+            row.get("Klassifikator")
+            or row.get("Klassifikator_ru")
+            or row.get("Klassifikator_en")
+            or row.get("Klassifikator_uzc")
+        )
+        if not display:
+            continue
+        for key in (
+            "Klassifikator",
+            "Klassifikator_ru",
+            "Klassifikator_en",
+            "Klassifikator_uzc",
+        ):
+            variant = row.get(key)
+            if not variant:
+                continue
+            norm = _normalize_apostrophes(str(variant)).lower()
+            if norm and norm not in blob_to_display:
+                blob_to_display[norm] = display
+                blobs.append(norm)
+
+    if not blobs:
+        return []
+
+    # Over-fetch then dedupe by display name to keep `n` distinct rows even when
+    # several variants of one row score high.
+    matches = difflib.get_close_matches(norm_query, blobs, n=n * 3, cutoff=0.5)
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in matches:
+        d = blob_to_display.get(m)
+        if d and d not in seen:
+            seen.add(d)
+            out.append(d)
+            if len(out) >= n:
+                break
+    return out
+
+
+def _format_region_not_found(
+    sdmx_id: int,
+    region: str,
+    data_section: list[dict],
+    period_hint: str = "",
+) -> str:
+    """Build a region-miss error message with fuzzy suggestions baked in.
+
+    Suggestions let the agent recover in-place rather than re-calling
+    `inspect_sdmx_data` to discover the right label.
+    """
+    suggestions = _suggest_close_region_labels(region, data_section)
+    where = f" davr '{period_hint}'," if period_hint else ""
+    base = (
+        f"Mintaqa topilmadi: SDMX ID {sdmx_id},{where} so'ralgan: '{region}'"
+    )
+    if suggestions:
+        bullets = "\n".join(f"  - {s}" for s in suggestions)
+        base += (
+            "\nYaqin variantlar (qaytadan urinib ko'ring, AYNAN ko'chiring):\n"
+            + bullets
+        )
+    else:
+        base += (
+            "\nO'xshash qator topilmadi. Mavjud nomlarni ko'rish uchun "
+            "`inspect_sdmx_data(sdmx_id)` ishlating."
+        )
+    return base
 
 
 def _row_matches_region(row: dict, query: str) -> bool:
@@ -302,7 +395,7 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
             None,
         )
         if not matching_row:
-            return f"Mintaqa topilmadi: '{region}' uchun SDMX ID {sdmx_id}"
+            return _format_region_not_found(sdmx_id, region, data_section)
 
         region_name = matching_row.get('Klassifikator') or matching_row.get('Klassifikator_ru') or matching_row.get('Klassifikator_en') or region
 
@@ -375,8 +468,18 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
     result = extract_value_from_data(data_section, year, region=region)
 
     if result is None:
+        # Distinguish "region miss" (fuzzy-suggest other labels) from "period miss"
+        # (list the periods we do have). Both can happen for the same call.
+        region_exists = any(
+            _row_matches_region(row, region) for row in data_section if isinstance(row, dict)
+        )
+        if not region_exists:
+            return _format_region_not_found(sdmx_id, region, data_section, period_hint=year)
         years_str = ', '.join(all_years) if all_years else "noma'lum"
-        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, davr '{year}', mintaqa '{region}'. Mavjud davrlar: {years_str}"
+        return (
+            f"Ma'lumot topilmadi: SDMX ID {sdmx_id}, davr '{year}', mintaqa '{region}'."
+            f" Mavjud davrlar: {years_str}"
+        )
 
     region_name = result['region_uz'] or result['region_ru'] or result['region_en'] or "Ma'lum emas"
     matched_period = result['year']  # may differ from `year` if user gave a year prefix
@@ -779,7 +882,9 @@ def calculate_yearly_growth(
             break
 
     if target_row is None:
-        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}" + (f", mintaqa '{region}'" if region else "")
+        if region:
+            return _format_region_not_found(sdmx_id, region, data_section)
+        return f"Ma'lumot topilmadi: SDMX ID {sdmx_id}"
 
     # Extract all available periods and values. Periods may be yearly ("2025"),
     # quarterly ("2025-Q1") or monthly ("2025-M03"); we sort them chronologically.
@@ -924,7 +1029,7 @@ def forecast_value(
             break
 
     if target_row is None:
-        return f"Mintaqa topilmadi: '{region}' uchun SDMX ID {sdmx_id}"
+        return _format_region_not_found(sdmx_id, region or "", data_section)
 
     # Pull yearly data only — forecasting on quarterly/monthly needs different math
     yearly: list[tuple[int, float]] = []
