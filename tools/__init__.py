@@ -46,6 +46,7 @@ from .sdmx_count_tool import (
     count_reports_by_id,
 )
 from .people_search_tool import find_indicators_by_person
+from .random_indicator_tool import random_indicators
 
 __all__ = [
     "get_sdmx_id",
@@ -78,5 +79,6 @@ __all__ = [
     "count_reports_for_category",
     "count_reports_by_id",
     "find_indicators_by_person",
+    "random_indicators",
 ]
 
