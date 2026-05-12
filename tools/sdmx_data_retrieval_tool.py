@@ -341,13 +341,17 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
     if not data_section:
         return f"Error: No data found in SDMX file {sdmx_id}"
 
-    # Extract unit from metadata
+    # Extract unit + indicator name from metadata. The name is used as the
+    # chart title so the frontend doesn't render bare "SDMX ID 587" cards.
     unit = Units.DEFAULT
+    indicator_name = ""
     for item in metadata:
-        name_en = item.get('name_en', '').lower()
+        name_en = (item.get('name_en') or '').lower()
         if 'unit of measurement' in name_en or 'unit' in name_en:
             unit = item.get('value_uz', 'kishi')
-            break
+        elif 'indicator name' in name_en or 'dataset name' in name_en:
+            indicator_name = item.get('value_uz', '')
+    chart_title_base = indicator_name or f"SDMX ID {sdmx_id}"
 
     # Collect all period columns (yearly, quarterly, or monthly).
     all_years: list[str] = []
@@ -416,7 +420,7 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         if chart_data:
             push_chart({
                 "chart_type": "line",
-                "title": f"SDMX ID {sdmx_id}: {region_name}",
+                "title": f"{chart_title_base} — {region_name}",
                 "unit": unit,
                 "data": chart_data,
             })
@@ -457,7 +461,7 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         if chart_data:
             push_chart({
                 "chart_type": "bar",
-                "title": f"SDMX ID {sdmx_id}: {matched_periods[0]}",
+                "title": f"{chart_title_base}: {sdmx_id} — {matched_periods[0]}",
                 "unit": unit,
                 "data": chart_data,
             })
