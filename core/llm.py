@@ -124,7 +124,8 @@ elif settings.llm_provider == "deepinfra":
     _base_llm = ChatOpenAI(**deepinfra_kwargs)
     logger.info(f"DeepInfra LLM initialized with model: {settings.deepinfra_model}")
 elif settings.llm_provider == "vllm":
-    # Local vLLM server (OpenAI-compatible). See vllm/ folder for the Docker setup.
+    # Local vLLM server (OpenAI-compatible). Docker setup lives in the
+    # separate siat-vllm project (~/PycharmProjects/siat-vllm).
     # extra_body disables Qwen3's default <think> reasoning block — it interferes
     # with tool-call parsing and roughly doubles latency for this tool-only agent.
     vllm_kwargs = {

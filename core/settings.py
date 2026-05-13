@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     deepinfra_base_url: str = "https://api.deepinfra.com/v1/openai"
     deepinfra_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 
-    # Local vLLM server (OpenAI-compatible). See vllm/ folder for the Docker setup.
+    # Local vLLM server (OpenAI-compatible). Docker setup lives in the
+    # separate siat-vllm project (~/PycharmProjects/siat-vllm).
     vllm_base_url: str = "http://localhost:8000/v1"
     vllm_model: str = "qwen3-32b"
     vllm_api_key: str = "EMPTY"
