@@ -8,6 +8,9 @@
   "shahar aholisi": ["urban population", "shahar", "gorodskoe naseleniye", "городское население"],
   "qishloq aholisi": ["rural population", "qishloq", "selskoe naseleniye", "сельское население"],
 
+  "o'sish": ["sur'at", "surati", "sur`at", "o`sish", "osish", "dinamika", "tendensiya", "growth", "growth rate", "rate", "trend", "темп роста", "рост"],
+  "jami": ["total", "umumiy", "barchasi", "umumiy soni", "всего", "общий", "итого"],
+
   "ish haqi": ["maosh", "wage", "salary", "zarplata", "average wage", "ish haqi miqdori", "зарплата", "заработная плата"],
   "ishsizlik": ["unemployment", "ishsiz", "bezrabotitsa", "ishsizlik darajasi", "unemployment rate", "безработица"],
   "band aholi": ["employed", "employment", "zanyatost", "ish bilan band", "занятые", "занятость"],
