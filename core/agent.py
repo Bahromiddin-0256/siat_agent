@@ -91,6 +91,53 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 
+_TABLE_ROW_RE = re.compile(r"^\s*\|.+\|\s*$")
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|(?:\s*:?-+:?\s*\|)+\s*$")
+
+
+def _normalize_markdown_tables(text: str) -> str:
+    """Inject the GFM separator row into pipe-tables that are missing one.
+
+    Why: the chat UI uses marked.js with `gfm: true`. GFM tables require a
+    line of dashes (`|---|---|...|`) immediately after the header — without
+    it, marked silently falls back to plain-text rendering and the header
+    cells visually glue together. Models occasionally omit the separator,
+    so we normalise here as a defensive belt over the system-prompt rule.
+    """
+    if not text or "|" not in text:
+        return text
+
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        if _TABLE_ROW_RE.match(lines[i]):
+            block_start = i
+            while i < n and _TABLE_ROW_RE.match(lines[i]):
+                i += 1
+            block = lines[block_start:i]
+            if len(block) >= 2 and not _TABLE_SEPARATOR_RE.match(block[1]):
+                header = block[0]
+                cells = header.split("|")
+                if cells and cells[0].strip() == "":
+                    cells = cells[1:]
+                if cells and cells[-1].strip() == "":
+                    cells = cells[:-1]
+                ncols = len(cells)
+                if ncols >= 2:
+                    sep = "|" + "|".join(["---"] * ncols) + "|"
+                    out.append(header)
+                    out.append(sep)
+                    out.extend(block[1:])
+                    continue
+            out.extend(block)
+        else:
+            out.append(lines[i])
+            i += 1
+    return "\n".join(out)
+
+
 def parse_xml_function_call(content: str) -> tuple[str | None, dict | None]:
     """
     Parse XML-style function calls from model output.
@@ -419,6 +466,30 @@ which argument you LEAVE OUT:
 Never describe the chart in text instead of producing data — the frontend can
 only render what the tools emit. And never call `get_sdmx_value` once per
 year in a loop — one call without `year` gives you the entire series.
+
+## Markdown table formatting (HARD RULE)
+
+The chat UI renders your reply via marked.js with GFM enabled — that means a
+markdown table MUST have a header row, a separator row of dashes, and one
+row per record. Without the separator row, marked silently falls back to
+plain text and the columns visually glue together (header reads as one
+unbroken string). Format every inline table EXACTLY like this:
+
+```
+| Davr | Qiymat (ming kishi) | Yillik o'sish |
+|------|---------------------|---------------|
+| 2013 | 29 993.5            | —             |
+| 2023 | 36 024.9            | +1.85%        |
+```
+
+Rules:
+- Always include the `|------|------|...|` separator row immediately after
+  the header. Never omit it.
+- Surround every cell with `|` on both sides; do not use raw spaces or tabs
+  as column delimiters.
+- Leave a blank line above and below the table so marked detects the block.
+- Use the language-matched headers ("Davr/Qiymat/O'sish %" for Uzbek,
+  "Период/Значение/Рост %" for Russian, "Period/Value/Growth %" for English).
 """
 
     # Create the ReAct agent
@@ -604,6 +675,7 @@ async def run_agent_async(
             except Exception as e:
                 logger.warning(f"Critic retry failed, keeping original answer: {e}")
 
+        final = _normalize_markdown_tables(final)
         answer_cache.put(question, final)
     return final
 
@@ -703,6 +775,7 @@ def run_agent(
             except Exception as e:
                 logger.warning(f"Critic retry failed, keeping original answer: {e}")
 
+        final = _normalize_markdown_tables(final)
         answer_cache.put(question, final)
     telemetry.close()
     return final
@@ -967,6 +1040,10 @@ async def run_agent_async_stream(
             except Exception as e:
                 logger.warning(f"State fallback failed: {e}")
                 final_text = "No response generated."
+
+        # Defensive: inject the GFM separator row into any pipe-table that
+        # is missing one (see _normalize_markdown_tables).
+        final_text = _normalize_markdown_tables(final_text)
 
         # Self-evaluation. For streaming we don't retry (would require
         # re-streaming, confusing UX). Instead emit a `quality_warning` event
