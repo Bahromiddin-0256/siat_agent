@@ -15,7 +15,7 @@
   "ishsizlik": ["unemployment", "ishsiz", "bezrabotitsa", "ishsizlik darajasi", "unemployment rate", "безработица"],
   "band aholi": ["employed", "employment", "zanyatost", "ish bilan band", "занятые", "занятость"],
 
-  "yim": ["yalpi ichki mahsulot", "gdp", "gross domestic product", "gross national product", "vvp", "ВВП", "yalpi hududiy mahsulot", "gross regional product"],
+  "yim": ["yaim", "yhm", "yalpi ichki mahsulot", "yalpi mahsulot", "gdp", "gross domestic product", "gross national product", "vvp", "ВВП", "yalpi hududiy mahsulot", "gross regional product", "ялпи ички махсулот", "ялпи маҳсулот"],
   "investitsiya": ["asosiy kapital", "kapital qo'yilmalar", "investments", "fixed capital", "investitsii", "инвестиции"],
   "eksport": ["chiqarish", "tashqi savdo eksporti", "exports", "exportt", "экспорт"],
   "import": ["import", "kirish", "imports", "importt", "импорт"],

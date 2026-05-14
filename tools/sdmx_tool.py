@@ -12,6 +12,7 @@ from langchain_core.tools import tool
 
 from core.logger import setup_logger
 from tools.file_utils import load_json_safe
+from tools.query_expander import expand_query
 
 logger = setup_logger(__name__)
 
@@ -168,10 +169,17 @@ def _get_sdmx_id(question: str) -> str:
     if not _json_data:
         return "Error: SDMX data not initialized. Call initialize_sdmx_data first."
 
-    # Extract meaningful keywords from the question (words with 2+ characters)
+    # Expand the user's question with domain synonyms so abbreviations like
+    # "YaIM" pull in the canonical "yalpi ichki mahsulot" / "gdp" tokens that
+    # actually appear in indicator names. expand_query is a no-op when no
+    # glossary entry matches.
+    expanded = expand_query(question)
+
+    # Extract meaningful keywords from the expanded question (words with 2+
+    # characters). The "|" separator added by expand_query is dropped here.
     query_terms = [
         term.lower().strip('?,.:;!')
-        for term in question.split()
+        for term in expanded.replace("|", " ").split()
         if len(term) > 2
     ]
 
