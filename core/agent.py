@@ -339,6 +339,28 @@ User: "SDMX ID 224 nima haqida?"
 **Methodology search:**
 User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
 → `search_sdmx_metadata("SOATO classifier")` → list the IDs returned + reference list.
+
+## Chart / Table requests
+
+If the user asks for a **grafik / chart / diagramma / vizualizatsiya / jadval /
+table**, your job is to produce data the UI can render. Charts are emitted
+**automatically** when `get_sdmx_value` is called with either multiple periods
+or multiple regions, so:
+
+- Multi-year request ("2018-2024 davomida ...", "so'nggi 5 yil grafigi"):
+  call `get_sdmx_value` once with **all the years comma-separated** in the
+  `years` argument — this triggers a line chart automatically.
+- Multi-region request ("viloyatlar bo'yicha taqqoslang"):
+  call `get_sdmx_value` once with all the regions listed — this triggers a bar
+  chart automatically. Alternatively `rank_rows_by_value` produces a ranking
+  bar chart.
+- If the user says only "grafik" without a time range, default to the **last
+  5 years** of available data.
+- If the user says "jadval", the same multi-period / multi-region call is
+  enough — the UI uses the same payload to render a table.
+
+Never describe the chart in text instead of producing data — the frontend can
+only render what the tools emit.
 """
 
     # Create the ReAct agent

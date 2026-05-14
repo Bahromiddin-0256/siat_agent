@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Django-like project root (repo root): /.../siat_agent
 BASE_DIR = Path(__file__).resolve().parents[1]
 
-_VALID_PROVIDERS = {"ollama", "groq", "open_router", "deepinfra", "vllm"}
+_VALID_PROVIDERS = {"ollama", "groq", "open_router", "deepinfra", "vllm", "openai"}
 
 
 class Settings(BaseSettings):
@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     vllm_base_url: str = "http://localhost:8000/v1"
     vllm_model: str = "qwen3-32b"
     vllm_api_key: str = "EMPTY"
+
+    # OpenAI (api.openai.com). `openai_base_url` lets you point at a
+    # compatible gateway (Azure OpenAI, LiteLLM, etc.) without changing code.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = ""
 
     # BGE-M3 embedding model (HuggingFace model ID or local path)
     bge_m3_model: str = "BAAI/bge-m3"
@@ -77,6 +83,9 @@ class Settings(BaseSettings):
 
         if self.llm_provider == "vllm" and not self.vllm_base_url.strip():
             errors.append("VLLM_BASE_URL is required when LLM_PROVIDER=vllm")
+
+        if self.llm_provider == "openai" and not self.openai_api_key.strip():
+            errors.append("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
 
         return errors
 

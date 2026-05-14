@@ -536,6 +536,12 @@ async def health_check():
     elif settings.llm_provider == "open_router":
         checks["open_router_api_key"] = bool(settings.open_router_api_key.strip())
         active_model = "meta-llama/llama-3.3-70b-instruct:free"
+    elif settings.llm_provider == "openai":
+        checks["openai_api_key"] = bool(settings.openai_api_key.strip())
+        active_model = settings.openai_model
+    elif settings.llm_provider == "vllm":
+        checks["vllm_base_url"] = bool(settings.vllm_base_url.strip())
+        active_model = settings.vllm_model
     else:
         active_model = "unknown"
 

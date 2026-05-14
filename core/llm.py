@@ -123,6 +123,21 @@ elif settings.llm_provider == "deepinfra":
         deepinfra_kwargs["streaming"] = False
     _base_llm = ChatOpenAI(**deepinfra_kwargs)
     logger.info(f"DeepInfra LLM initialized with model: {settings.deepinfra_model}")
+elif settings.llm_provider == "openai":
+    # Native OpenAI API (api.openai.com). `openai_base_url` is optional —
+    # leave blank to use the official endpoint, or point at an
+    # OpenAI-compatible gateway (Azure OpenAI proxy, LiteLLM, etc.).
+    openai_kwargs = {
+        "api_key": settings.openai_api_key,
+        "model": settings.openai_model,
+        "temperature": _TEMPERATURE,
+    }
+    if settings.openai_base_url.strip():
+        openai_kwargs["base_url"] = settings.openai_base_url
+    if _supports_param(ChatOpenAI, "streaming"):
+        openai_kwargs["streaming"] = False
+    _base_llm = ChatOpenAI(**openai_kwargs)
+    logger.info(f"OpenAI LLM initialized with model: {settings.openai_model}")
 elif settings.llm_provider == "vllm":
     # Local vLLM server (OpenAI-compatible). Docker setup lives in the
     # separate siat-vllm project (~/PycharmProjects/siat-vllm).
