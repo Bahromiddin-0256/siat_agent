@@ -24,7 +24,12 @@ from pydantic import BaseModel
 from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
 from core.settings import settings
 from core.logger import setup_logger
-from tools import initialize_sdmx_data, initialize_rag_vectorstore, initialize_metadata_vectorstore
+from tools import (
+    initialize_sdmx_data,
+    initialize_rag_vectorstore,
+    initialize_metadata_vectorstore,
+    ensure_main_json,
+)
 from tools import sdmx_tool
 from tools.rag_tool import get_vectorstore
 from tools.metadata_rag_tool import get_metadata_vectorstore
@@ -177,12 +182,30 @@ async def lifespan(app: FastAPI):
 
     try:
         json_path = Path(__file__).parent / "jsons" / "main.json"
-        logger.info("Loading SDMX data from: %s", json_path)
 
         # Run blocking I/O in the default thread-pool executor so we don't
         # stall the event loop.
         loop = asyncio.get_event_loop()
 
+        # First-boot fetch: if main.json is missing, download it from the
+        # configured SDMX catalog URL before initialising anything that
+        # depends on it.
+        if not json_path.exists():
+            logger.info(
+                "main.json not found at %s — fetching from %s",
+                json_path, settings.sdmx_catalog_url,
+            )
+            await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    ensure_main_json,
+                    json_path,
+                    settings.sdmx_catalog_url,
+                ),
+                timeout=90.0,
+            )
+
+        logger.info("Loading SDMX data from: %s", json_path)
         await asyncio.wait_for(
             loop.run_in_executor(None, initialize_sdmx_data, json_path),
             timeout=120.0,

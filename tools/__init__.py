@@ -10,6 +10,7 @@ from .sdmx_tool import (
     list_sdmx_categories,
     initialize_sdmx_data,
 )
+from .sdmx_fetch import ensure_main_json
 from .rag_tool import (
     search_sdmx_semantic,
     search_sdmx_with_score,
@@ -53,6 +54,7 @@ __all__ = [
     "get_sdmx_by_code",
     "list_sdmx_categories",
     "initialize_sdmx_data",
+    "ensure_main_json",
     "search_sdmx_semantic",
     "search_sdmx_with_score",
     "initialize_rag_vectorstore",

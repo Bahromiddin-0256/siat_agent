@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = ""
 
+    # SDMX catalog source. If jsons/main.json is missing on startup, the
+    # app downloads it from this URL on first boot.
+    sdmx_catalog_url: str = "https://api.siat.stat.uz/sdmx/json/"
+
     # BGE-M3 embedding model (HuggingFace model ID or local path)
     bge_m3_model: str = "BAAI/bge-m3"
 
@@ -67,9 +71,8 @@ class Settings(BaseSettings):
         if not (1024 <= self.port <= 65535):
             errors.append(f"Invalid PORT {self.port}. Must be between 1024 and 65535.")
 
-        main_json = BASE_DIR / "jsons" / "main.json"
-        if not main_json.exists():
-            errors.append(f"Missing required data file: {main_json}")
+        # `jsons/main.json` is fetched on first boot when missing (see
+        # main.py lifespan), so we don't fail validation for it here.
 
         # Provider-specific key checks
         if self.llm_provider == "groq" and not self.groq_api_key.strip():
