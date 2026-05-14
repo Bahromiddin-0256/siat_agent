@@ -523,16 +523,34 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
         logger.debug(f"Cache hit for semantic search: '{question[:50]}'")
         return cached
 
+    # Compute the user's dimensional intent now — we reuse it both for the
+    # retrieval-time "neutrality boost" and for the rerank-time subset penalty.
+    intent = _query_dimension_intent(question)
+
     # Expand the query with domain synonyms before encoding. The expanded
     # version is only used for retrieval; the cache key keeps the original
     # so identical user queries still hit the cache.
     encoded_query = expand_query(question)
+
+    # Neutrality boost: when the user did NOT name a demographic or geographic
+    # subset, append "total / jami" synonyms so the dense+sparse retrieval is
+    # pulled toward indicators tagged Subset: total. Without this, BGE-M3
+    # ranks the bare "(jami)" variant well below richer subset variants
+    # (age-group, share/ratio) because their indexed text matches more of the
+    # query's surface terms — that's how ID 246 ended up at rank 68 while
+    # ID 247 (qishloq) reached rank 3 on a neutral query.
+    if not intent:
+        encoded_query = (
+            f"{encoded_query} | jami umumiy total всего общий "
+            f"whole population both sexes all areas"
+        )
+
     dense, sparse = encode_query(encoded_query)
 
     # Over-fetch from RRF so the reranker has a real candidate pool to choose
     # from. RRF gives strong recall; cross-encoder rerank gives precision.
-    # Capped at 30 to keep rerank latency under ~300ms on CPU.
-    rerank_pool = min(max(k * 3, 15), 30)
+    # Pool grows with k but is capped to keep rerank latency bounded.
+    rerank_pool = min(max(k * 3, 30), 60)
 
     results = _get_client().query_points(
         collection_name=_COLLECTION,
@@ -565,7 +583,7 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
     #     recently and whose catalog status is "Yangilangan"
     #   * catalog_order_multiplier — small bias toward indicators that appear
     #     earlier in main.json (a soft prominence prior)
-    intent = _query_dimension_intent(question)
+    # `intent` was already computed above for the retrieval-time boost.
 
     def _composite(payload: dict, base: float) -> float:
         sub = (payload or {}).get("subset", "") or ""
