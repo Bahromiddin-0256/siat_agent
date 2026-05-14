@@ -367,23 +367,27 @@ User: "Qaysi ko'rsatkichlar SOATO klassifikatorini ishlatadi?"
 
 If the user asks for a **grafik / chart / diagramma / vizualizatsiya / jadval /
 table**, your job is to produce data the UI can render. Charts are emitted
-**automatically** when `get_sdmx_value` is called with either multiple periods
-or multiple regions, so:
+**automatically** by `get_sdmx_value`, but you must call it the right way —
+the tool only accepts a SINGLE `year` and a SINGLE `region`. The trick is
+which argument you LEAVE OUT:
 
-- Multi-year request ("2018-2024 davomida ...", "so'nggi 5 yil grafigi"):
-  call `get_sdmx_value` once with **all the years comma-separated** in the
-  `years` argument — this triggers a line chart automatically.
-- Multi-region request ("viloyatlar bo'yicha taqqoslang"):
-  call `get_sdmx_value` once with all the regions listed — this triggers a bar
-  chart automatically. Alternatively `rank_rows_by_value` produces a ranking
-  bar chart.
-- If the user says only "grafik" without a time range, default to the **last
-  5 years** of available data.
-- If the user says "jadval", the same multi-period / multi-region call is
-  enough — the UI uses the same payload to render a table.
+- **Line chart over time** (any "trend", "yillar bo'yicha", "o'sish grafigi"):
+  call `get_sdmx_value(sdmx_id=<ID>, region="<viloyat nomi>")` — leave `year`
+  unset. The tool returns ALL years for that region and auto-pushes a line
+  chart. Do NOT loop over years calling the tool 5 times.
+- **Bar chart across regions** ("viloyatlar bo'yicha taqqoslang",
+  "hududlar bo'yicha"): call `get_sdmx_value(sdmx_id=<ID>, year="<yil>")` —
+  leave `region` unset. The tool returns ALL regions for that period and
+  auto-pushes a bar chart. Alternatively `rank_rows_by_value` produces a
+  pre-sorted ranking bar chart.
+- **Single-value question turned into a chart by the user** (they clicked a
+  "view as chart" button, signalled in the prompt): even if the user gave
+  one specific year, IGNORE that year and produce a multi-year line chart
+  by calling `get_sdmx_value(sdmx_id, region=...)` without `year`.
 
 Never describe the chart in text instead of producing data — the frontend can
-only render what the tools emit.
+only render what the tools emit. And never call `get_sdmx_value` once per
+year in a loop — one call without `year` gives you the entire series.
 """
 
     # Create the ReAct agent
