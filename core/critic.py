@@ -38,6 +38,14 @@ _NO_RESPONSE_MARKERS = ("no response generated", "error processing", "i don't kn
 # Year-like tokens (2010..2099, optionally with -Q1..Q4 or -MM).
 _PERIOD_RE = re.compile(r"\b20\d{2}(?:-(?:Q[1-4]|\d{2}|M\d{1,2}))?\b")
 
+# Relative time spans: "10 yillik", "so'nggi 5 yil", "last 5 years", "за 10 лет".
+# Used by `_is_data_question` so growth/trend questions without explicit 20XX
+# years still get reviewed by the critic.
+_RELATIVE_PERIOD_RE = re.compile(
+    r"\b\d+\s*-?\s*(?:yil(?:lik|larda|larda?gi)?|year[s]?|год[аов]?|лет)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class CritiqueResult:
@@ -48,18 +56,27 @@ class CritiqueResult:
 
 
 def _is_data_question(question: str) -> bool:
-    """True if the question seems to ask for a specific value/number.
+    """True if the question seems to ask for a specific value/number, growth,
+    trend, or any time-series shaped indicator query.
 
-    Heuristic: contains a year, or one of the "how many / what value" trigger
+    Heuristic: contains an explicit year (2023), a relative span ("10 yillik",
+    "so'nggi 5 yil", "last 5 years"), or one of the value/growth trigger
     words. Lookups like "what is SDMX ID 42 about?" don't need the same
     structural checks (no period to verify, etc.).
     """
-    if _PERIOD_RE.search(question):
+    if _PERIOD_RE.search(question) or _RELATIVE_PERIOD_RE.search(question):
         return True
     triggers = (
+        # Value lookups
         "qancha", "nechta", "necha", "qaysi yili",
         "how many", "how much", "what is the value", "value of",
         "сколько", "какое значение", "значение",
+        # Growth / trend / rate lookups — these also produce numeric answers
+        # the critic should validate (wrong indicator variant, wrong region).
+        "o'sish", "o`sish", "osish", "sur'at", "sur`at", "surat",
+        "dinamika", "tendensiya", "evolyutsiya", "ko'paygan", "kamaygan",
+        "growth", "rate", "trend", "change", "increase", "decrease",
+        "рост", "темп", "динамика", "тенденция", "изменение",
     )
     q_lower = question.lower()
     return any(t in q_lower for t in triggers)
@@ -107,11 +124,23 @@ to detect *substantive* errors that would mislead the user.
 Check ONLY these things:
 1. Does the draft answer the question the user actually asked? (Not a related
    indicator, not a different region, not a different year.)
-2. Is the unit consistent with the indicator? (kishi for people, mlrd. so'm
+2. **Indicator variant match.** If the cited indicator name carries a
+   demographic or geographic suffix — `(ayol)`, `(erkak)`, `(qishloq)`,
+   `(shahar)`, `(female)`, `(male)`, `(urban)`, `(rural)`, `(женщины)`,
+   `(мужчины)`, `(город)`, `(село)` — the user's question MUST explicitly
+   request that subset. Examples of FAIL:
+     - User asked "respublika aholisi" (whole-country population), answer
+       cited "Doimiy aholi soni (ayol)" — flag it; the correct variant is
+       "(jami)".
+     - User asked "Uzbekistan population growth", answer cited
+       "Permanent population (urban)" — flag it.
+   If the question is neutral on gender/urban-rural and the answer uses a
+   subset variant, that is a wrong-indicator error, not a stylistic one.
+3. Is the unit consistent with the indicator? (kishi for people, mlrd. so'm
    for currency totals, % for shares, etc. — flag if missing or obviously wrong.)
-3. Is the response in the SAME LANGUAGE as the user's question?
+4. Is the response in the SAME LANGUAGE as the user's question?
    (uz → uz, ru → ru, en → en. Mixed-language responses are a fail.)
-4. Are there internal contradictions (a table row that doesn't match the
+5. Are there internal contradictions (a table row that doesn't match the
    narrative number, a "growth" labelled positive but with a decreasing value)?
 
 Do NOT flag style, formatting, verbosity, or missing IDs/links — those are
