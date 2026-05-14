@@ -85,7 +85,7 @@ data slices) and, if so, write a short numbered plan the agent should follow.
 
 Rules:
 - A single comparison across regions or years counts as ONE ask, not compound.
-  Example: "compare 2020 and 2023 birth rate in Toshkent" → NOT compound.
+  Example: "compare 2023 and 2025 birth rate in Toshkent" → NOT compound.
 - "compare X in Toshkent and Andijon, AND ALSO show GDP for same period" → compound.
 - "what is X and how does it relate to Y" → compound.
 - Plan steps must reference SIAT tools by name when obvious

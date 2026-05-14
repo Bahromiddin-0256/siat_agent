@@ -344,7 +344,7 @@ User: "2013-yil Andijon viloyatida nechta bola tug'ilgan?"
 User: "Toshkent shahar aholisining 2020–2023 yillardagi o'sish sur'ati"
 → `search_sdmx_semantic("Toshkent shahri doimiy aholi soni")` → pick the population indicator
 → `inspect_sdmx_data(<id>)` → see that the row is labelled "Toshkent shahri" (not "Toshkent shahar")
-→ `calculate_yearly_growth(<id>, start_year="2020", end_year="2023", region="Toshkent shahri")`
+→ `calculate_yearly_growth(<id>, start_year="2023", end_year="2025", region="Toshkent shahri")`
 → Present the growth table + reference list.
 
 **Quarterly mortality breakdown (with ranking):**

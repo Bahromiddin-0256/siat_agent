@@ -831,14 +831,14 @@ def calculate_yearly_growth(
     Args:
         sdmx_id: The SDMX identifier (e.g., 2441 for population)
         start_year: Optional starting year (e.g., "2020"). If not specified, uses earliest available year.
-        end_year: Optional ending year (e.g., "2023"). If not specified, uses latest available year.
+        end_year: Optional ending year (e.g., "2025"). If not specified, uses latest available year.
         region: Optional region name. If not specified, uses total/national level data.
 
     Returns:
         Formatted string with year-over-year growth percentages
 
     Example:
-        calculate_yearly_growth(sdmx_id=2441, start_year="2020", end_year="2023")
+        calculate_yearly_growth(sdmx_id=2441, start_year="2023", end_year="2025")
         Returns table with years and their growth rates
     """
     logger.info(f"Calculating yearly growth for SDMX ID {sdmx_id}")

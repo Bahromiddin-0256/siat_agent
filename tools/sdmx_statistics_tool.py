@@ -359,7 +359,7 @@ def compare_regions(
 
     Args:
         sdmx_id: The SDMX identifier
-        year: Year as string (e.g., "2023")
+        year: Year as string (e.g., "2025")
         regions: Optional list of specific regions to compare. If None, compares all regions.
 
     Returns:
@@ -368,8 +368,8 @@ def compare_regions(
     Keywords: "solishtirish", "compare", "viloyatlar", "regions", "mintaqalar"
 
     Example:
-        compare_regions(sdmx_id=223, year="2023", regions=["Andijon", "Toshkent"])
-        compare_regions(sdmx_id=223, year="2023")  # Compare all regions
+        compare_regions(sdmx_id=223, year="2025", regions=["Andijon", "Toshkent"])
+        compare_regions(sdmx_id=223, year="2025")  # Compare all regions
     """
     logger.info(f"Comparing regions for SDMX ID {sdmx_id}, year {year}")
 
@@ -466,7 +466,7 @@ def rank_regions(
 
     Args:
         sdmx_id: The SDMX identifier
-        year: Year as string (e.g., "2023")
+        year: Year as string (e.g., "2025")
         ascending: If True, ranks from lowest to highest. Default is False (highest to lowest)
         top_n: Optional limit to show only top N regions
 
@@ -476,9 +476,9 @@ def rank_regions(
     Keywords: "reyting", "ranking", "eng yuqori", "eng past", "top", "birinchi o'rin"
 
     Example:
-        rank_regions(sdmx_id=223, year="2023")  # All regions, highest first
-        rank_regions(sdmx_id=223, year="2023", top_n=10)  # Top 10 regions
-        rank_regions(sdmx_id=223, year="2023", ascending=True)  # Lowest first
+        rank_regions(sdmx_id=223, year="2025")  # All regions, highest first
+        rank_regions(sdmx_id=223, year="2025", top_n=10)  # Top 10 regions
+        rank_regions(sdmx_id=223, year="2025", ascending=True)  # Lowest first
     """
     logger.info(f"Ranking regions for SDMX ID {sdmx_id}, year {year}")
 
@@ -561,7 +561,7 @@ def calculate_percentage_share(
 
     Args:
         sdmx_id: The SDMX identifier
-        year: Year as string (e.g., "2023")
+        year: Year as string (e.g., "2025")
 
     Returns:
         Table showing absolute values and percentage shares for all regions
@@ -569,7 +569,7 @@ def calculate_percentage_share(
     Keywords: "ulush", "foiz", "percentage share", "distribution", "taqsimot"
 
     Example:
-        calculate_percentage_share(sdmx_id=223, year="2023")
+        calculate_percentage_share(sdmx_id=223, year="2025")
     """
     logger.info(f"Calculating percentage shares for SDMX ID {sdmx_id}, year {year}")
 
@@ -661,8 +661,8 @@ def compare_years(
 
     Args:
         sdmx_id: The SDMX identifier
-        year1: First year (e.g., "2020")
-        year2: Second year (e.g., "2023")
+        year1: First year (e.g., "2023")
+        year2: Second year (e.g., "2025")
         region: Optional region name. If not specified, uses total/national level data.
 
     Returns:
@@ -671,8 +671,8 @@ def compare_years(
     Keywords: "solishtir", "compare", "farq", "difference", "o'zgarish", "change"
 
     Example:
-        compare_years(sdmx_id=223, year1="2020", year2="2023")
-        compare_years(sdmx_id=223, year1="2020", year2="2023", region="Andijon")
+        compare_years(sdmx_id=223, year1="2023", year2="2025")
+        compare_years(sdmx_id=223, year1="2023", year2="2025", region="Andijon")
     """
     logger.info(f"Comparing years {year1} vs {year2} for SDMX ID {sdmx_id}")
 
