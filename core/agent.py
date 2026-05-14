@@ -270,6 +270,21 @@ indicators by selecting the right tool, executing it, and explaining the result.
     ma'lumotlarga ko'ra (2024-yil)..."). If the most recent period in the
     dataset is 2023, the answer is 2023 — do **NOT** project the value
     forward to "today's year" or to 2025.
+11a. **PERIODICITY MATCHING — pick the right granularity.** Each indicator
+     has a `period` (visible in the search result and in `get_sdmx_metadata`):
+     `Yillik` (annual), `Choraklik` (quarterly), `Oylik` (monthly).
+     - User said years only ("2020-2024", "2023-yilda", "so'nggi 5 yil"):
+       prefer the **Yillik** variant. Many indicators exist in both annual
+       AND monthly/quarterly forms — when search returns several, pick the
+       one whose period matches the user's time granularity.
+     - User said a month ("yanvar oyida", "2024-M03"): pick **Oylik**.
+     - User said a quarter ("2024-Q3", "1-chorak"): pick **Choraklik**.
+     - User asked for a chart with year axis: pick **Yillik** (a monthly
+       chart for a year-level question is unreadable — 60 ticks instead
+       of 5).
+     If the first search returns only a monthly variant when annual is more
+     appropriate, run a second search with " yillik" appended, or call
+     `get_sdmx_metadata` on a couple of candidates to confirm period.
 12. **NEVER forecast / extrapolate / project values unless the user
     explicitly asks for a prediction.** Trigger words for an explicit
     forecast request: "bashorat qil", "prognoz", "forecast", "predict",
