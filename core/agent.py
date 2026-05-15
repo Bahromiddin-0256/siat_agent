@@ -538,10 +538,14 @@ def _has_thread_history(agent, config) -> bool:
 def _build_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
     """Construct input messages, honouring the checkpointer's existing state.
 
-    First turn in a thread → [SystemMessage (+ few-shots), HumanMessage (+ plan hint)]
+    First turn in a thread → [SystemMessage (+ few-shots + lang lock), HumanMessage (+ plan hint)]
     Follow-up turns       → [HumanMessage] only (system + history already in state)
     """
+    from core.lang import detect_language, lock_directive
+
     has_history = _has_thread_history(agent, config)
+    q_lang = detect_language(question)
+    lock = lock_directive(q_lang)
 
     msgs: list[BaseMessage] = []
     if not has_history and system_prompt:
@@ -554,9 +558,15 @@ def _build_input_messages(agent, config, system_prompt: str | None, question: st
         except Exception as e:
             logger.debug(f"Few-shot retrieval skipped: {e}")
             extra = ""
-        msgs.append(SystemMessage(content=system_prompt + extra))
+        # Lock goes at the END of the system prompt so it's the freshest
+        # instruction the model sees before the user turn.
+        msgs.append(SystemMessage(content=system_prompt + extra + "\n\n" + lock))
     # Optionally augment the human message with a plan hint for compound queries.
     human_content = _augment_question_with_plan(question) if not has_history else question
+    # Always prepend the lock to the human turn too — follow-up turns don't get
+    # a new SystemMessage, so the human-side directive is what enforces the
+    # language across retries and multi-turn threads.
+    human_content = f"{lock}\n{human_content}"
     msgs.append(HumanMessage(content=human_content))
     return msgs
 
