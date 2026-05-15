@@ -882,10 +882,20 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
             constituents = catalog_brackets
             if constituents:
                 warning.append(
-                    f"Constituent age brackets that overlap {range_label} "
-                    f"(sum these to approximate the requested range):"
+                    f"Age brackets that overlap {range_label} (jami / total "
+                    f"variants only — gender-specific subsets are excluded "
+                    f"below to avoid double-counting):"
                 )
-                for cid, cname, (cl, ch) in constituents[:20]:
+                # Prefer the "jami" / total variants — exclude gender splits
+                # so the agent doesn't accidentally add a male subset to the
+                # total and double-count.
+                gender_markers = ("(ayollar)", "(erkaklar)", "(ayol)", "(erkak)")
+                jami_constituents = [
+                    (cid, cname, crng)
+                    for (cid, cname, crng) in constituents
+                    if not any(g in cname.lower() for g in gender_markers)
+                ]
+                for cid, cname, (cl, ch) in jami_constituents[:15]:
                     if cl >= lo and ch <= hi:
                         cover = "fully inside"
                     elif cl < lo and ch > hi:
@@ -896,10 +906,15 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
                         cover = f"extends below lower bound (starts at {cl})"
                     warning.append(f"  - SDMX {cid}: {cname} [{cover}]")
                 warning.append(
-                    "Either present this list and ask the user which to sum, "
-                    "or fetch each bracket's value and sum them yourself "
-                    f"(subtracting the out-of-range portion if a bracket extends "
-                    f"past {range_label})."
+                    "CRITICAL RULE: Do NOT silently sum these and present a "
+                    "single number — past attempts have produced wrong totals "
+                    "by double-counting gender subsets, inventing intermediate "
+                    "ranges, or mislabeling units. Instead: present this "
+                    "bracket list to the user, explain that no single "
+                    "indicator covers the requested range, and ask which "
+                    "brackets to fetch. Only sum if the user explicitly "
+                    "confirms, and only after fetching each bracket's value "
+                    "via the value-fetching tool."
                 )
             # Flag off-topic exact-range matches so the LLM doesn't use them
             off_topic_exact = [
