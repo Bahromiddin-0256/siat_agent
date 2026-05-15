@@ -5,11 +5,15 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install build tools and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    curl \
+# Install build tools and uv. Switch apt mirrors to HTTPS first — the
+# HTTP mirrors get reset by some firewalls/proxies.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' \
+        /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        curl \
+        ca-certificates \
     && pip install --no-cache-dir uv \
     && rm -rf /var/lib/apt/lists/*
 
