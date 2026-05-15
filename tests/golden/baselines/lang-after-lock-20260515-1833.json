@@ -1,0 +1,114 @@
+{
+  "endpoint": "http://localhost:8001/chat",
+  "summary": {
+    "total": {
+      "passed": 2,
+      "total": 4,
+      "rate": 0.5
+    },
+    "by_category": {
+      "language": {
+        "passed": 2,
+        "total": 4,
+        "rate": 0.5
+      }
+    },
+    "by_language": {
+      "en": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1.0
+      },
+      "ru": {
+        "passed": 0,
+        "total": 2,
+        "rate": 0.0
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "lang-english-pop-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Population of Uzbekistan in 2024",
+      "duration_s": 80.31,
+      "response": "In 2024, the permanent population of Uzbekistan was **36,799.8 thousand people**.\n\n---\nUsed indicators:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-english-unemployment-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Unemployment rate in Uzbekistan 2024",
+      "duration_s": 8.68,
+      "response": "The unemployment rate in Uzbekistan in 2024 was **5.5%**.\n\n---\n\nUsed indicator:\n- SDMX ID 1875: Unemployment rate — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-russian-gdp-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "ВВП Узбекистана за 2024 год",
+      "duration_s": 20.25,
+      "response": "ВВП Узбекистана в 2024 году составил 1 535 431,7 млрд. сум.\n\n---\nИспользованные показатели:\n- SDMX ID 544: Yalpi ichki mahsulot hajmi (ishlab chiqarish usulida, joriy narxlarda, yillik) — https://siat.stat.uz/reports-filed/544/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": false,
+          "detail": "expected ru, got uz"
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "lang-russian-pop-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "Численность населения Узбекистана 2024 год",
+      "duration_s": 120.12,
+      "response": "",
+      "error": "ReadTimeout: timed out",
+      "assertions": [
+        {
+          "type": "request",
+          "passed": false,
+          "detail": "ReadTimeout: timed out"
+        }
+      ],
+      "passed": false
+    }
+  ]
+}

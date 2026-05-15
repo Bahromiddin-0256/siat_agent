@@ -28,9 +28,15 @@ def _extract_sdmx_ids(response: str) -> set[int]:
 def _detect_language(response: str) -> str:
     """Crude language detection by character class and stopwords.
 
-    Returns 'uz', 'ru', 'en', or 'unknown'. Suffices for our 3-language case.
+    Returns 'uz', 'ru', 'en', or 'unknown'. Strips the SDMX footer
+    (everything after the "---" divider) so verbatim indicator names —
+    which are always Uzbek per system-prompt rule — don't bias detection.
     """
-    text = response.lower()
+    body = response.split("\n---", 1)[0]
+    # Also strip any markdown URLs whose anchor text matches the URL (the
+    # SDMX link itself is Latin and content-free for language detection).
+    body = re.sub(r"https?://\S+", "", body)
+    text = body.lower()
     cyrillic = sum(1 for c in text if "Ѐ" <= c <= "ӿ")
     latin = sum(1 for c in text if "a" <= c <= "z")
     total = cyrillic + latin
