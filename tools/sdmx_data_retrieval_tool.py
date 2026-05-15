@@ -36,6 +36,27 @@ _NON_PERIOD_KEYS = {
 }
 
 
+# Sub-region admin units that should NOT appear in a region-level rollup.
+# Uzbek catalog rows include both top-level units (national, autonomous
+# republic, 12 viloyats, Toshkent shahri, Nukus shahri) AND every tuman
+# (district) of every viloyat. Dumping all 200+ rows to the LLM is the
+# root cause of the "table elision" bug — the model truncates the long
+# list when re-formatting it as a markdown table, dropping 2-4 viloyats.
+_SUBUNIT_MARKERS = (
+    " tumani",   # district
+    "shaharchasi",  # urban-type settlement
+    " mfy",      # mahalla
+)
+
+
+def _is_region_level(row_name: str | None) -> bool:
+    """True if the row is a top-level admin unit (region, not district)."""
+    if not row_name:
+        return False
+    low = row_name.lower()
+    return not any(marker in low for marker in _SUBUNIT_MARKERS)
+
+
 def _is_period_key(key: str) -> bool:
     """True if `key` looks like a data period column (year/quarter/month)."""
     return isinstance(key, str) and bool(_PERIOD_RE.match(key))
@@ -434,12 +455,28 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
             years_str = ', '.join(all_years) if all_years else "noma'lum"
             return f"Davr topilmadi: '{year}'. Mavjud davrlar: {years_str}"
 
+        # Filter to top-level admin units. Without this the LLM gets 200+
+        # district-level rows and silently drops 2-4 region rows when
+        # rebuilding the table.
+        region_rows = [
+            r for r in data_section
+            if _is_region_level(
+                r.get('Klassifikator')
+                or r.get('Klassifikator_ru')
+                or r.get('Klassifikator_en')
+            )
+        ]
+        # If no row qualifies (some datasets are organised purely by category
+        # rather than by region), fall back to the unfiltered set.
+        if not region_rows:
+            region_rows = list(data_section)
+
         result_lines = [f"SDMX ID {sdmx_id}: {', '.join(matched_periods)}"]
         result_lines.append(f"O'lchov: {unit}")
         result_lines.append("")
 
         chart_data = []
-        for row in data_section:
+        for row in region_rows:
             region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or row.get('Klassifikator_en') or "Ma'lum emas"
             if len(matched_periods) == 1:
                 # Single period: one row per region
@@ -457,6 +494,33 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
                 for period in matched_periods:
                     value = row.get(period, 'N/A')
                     result_lines.append(f"  {period}: {value} {unit}")
+
+        # For single-period region rollups, also emit a pre-formatted markdown
+        # table block. The LLM can copy it verbatim instead of regenerating —
+        # past failures saw 2-4 viloyats silently dropped when the model
+        # rebuilt the table from the prose list above.
+        if len(matched_periods) == 1:
+            period = matched_periods[0]
+            result_lines.append("")
+            result_lines.append(
+                f"MARKDOWN TABLE — {len(region_rows)} rows, copy verbatim "
+                f"(do NOT drop or summarize any row; translate the header "
+                f"into the user's response language but keep ALL region names "
+                f"and numbers as-is):"
+            )
+            result_lines.append("```")
+            result_lines.append(f"| Hudud | Qiymat ({unit}) |")
+            result_lines.append("|---|---|")
+            for row in region_rows:
+                region_name = (
+                    row.get('Klassifikator')
+                    or row.get('Klassifikator_ru')
+                    or row.get('Klassifikator_en')
+                    or "Ma'lum emas"
+                )
+                value = row.get(period, 'N/A')
+                result_lines.append(f"| {region_name} | {value} |")
+            result_lines.append("```")
 
         if chart_data:
             push_chart({
