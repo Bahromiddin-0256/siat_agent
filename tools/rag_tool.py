@@ -654,8 +654,14 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
 
     # Over-fetch from RRF so the reranker has a real candidate pool to choose
     # from. RRF gives strong recall; cross-encoder rerank gives precision.
-    # Pool grows with k but is capped to keep rerank latency bounded.
+    # Pool grows with k but is capped to keep rerank latency bounded. We widen
+    # the pool when the query has an explicit age range so age-bracketed
+    # alternatives have a fair chance of surfacing for the warning's
+    # constituent-bracket suggestions.
+    q_age_range_for_pool = _query_age_range(question)
     rerank_pool = min(max(k * 3, 30), 60)
+    if q_age_range_for_pool is not None:
+        rerank_pool = min(max(rerank_pool, 120), 150)
 
     results = _get_client().query_points(
         collection_name=_COLLECTION,
@@ -740,26 +746,100 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
 
     output_lines: list[str] = []
 
-    # If the user named a specific age range and none of the top results
-    # covers it exactly, make that explicit so the LLM doesn't silently
-    # substitute a total-population or near-bracket indicator and present
-    # its value as if it were the requested range.
+    # If the user named a specific age range, surface the age-bracket landscape
+    # so the LLM can either pick an exact-match indicator, sum constituents, or
+    # honestly tell the user no single indicator covers the range. Off-topic
+    # exact matches (e.g. "Bolalarning (0-14 yosh) shifoxona o'rinlari..." for
+    # "0-14 yosh bolalar soni") should NOT silently get substituted.
     if q_age_range is not None:
-        exact = any(
-            _indicator_age_range((point.payload or {}).get("name")) == q_age_range
-            for point in results
+        lo, hi = q_age_range
+        range_label = f"{lo}+" if hi >= 200 else f"{lo}-{hi}"
+
+        # Collect all overlapping age-bracketed indicators from the pool.
+        # Skip indicators whose name suggests they're rates/ratios/provisions
+        # rather than counts — those aren't summable into a population count.
+        _OFF_TOPIC_MARKERS = (
+            "ta'minlanganligi",
+            "taʼminlanganligi",
+            "darajasi",
+            "indeksi",
+            "ulushi",
+            "tug'ilgan",
+            "tugʻilgan",
+            "o'sish",
+            "oʻsish",
+            "koeffitsienti",
         )
-        if not exact:
-            lo, hi = q_age_range
-            hi_label = "+" if hi >= 200 else f"-{hi}"
-            range_label = f"{lo}{hi_label}" if hi >= 200 else f"{lo}-{hi}"
-            output_lines.append(
-                f"⚠️ NO EXACT AGE-RANGE MATCH for {range_label}. The catalog "
-                f"does NOT contain an indicator covering exactly {range_label}. "
-                f"Do NOT present any indicator below as if it covers {range_label} — "
-                f"either sum the constituent age brackets, or tell the user no "
-                f"single indicator covers that range and offer the closest options.\n"
-            )
+
+        def _is_off_topic_for_count(name: str) -> bool:
+            n = (name or "").lower()
+            return any(m in n for m in _OFF_TOPIC_MARKERS)
+
+        overlapping: list[tuple[int, str, tuple[int, int], bool]] = []
+        exact_match_count_topic = False
+        for point in results:
+            p = point.payload or {}
+            i_range = _indicator_age_range(p.get("name"))
+            if i_range is None:
+                continue
+            il, ih = i_range
+            if ih < lo or il > hi:
+                continue
+            name = p.get("name") or ""
+            off_topic = _is_off_topic_for_count(name)
+            overlapping.append((p.get("id"), name, i_range, off_topic))
+            if i_range == q_age_range and not off_topic:
+                exact_match_count_topic = True
+
+        if not exact_match_count_topic:
+            warning = [
+                f"⚠️ NO EXACT COUNT INDICATOR for age range {range_label}. "
+                f"The catalog has no single indicator giving a population/count "
+                f"figure for exactly {range_label}."
+            ]
+            # Suggest summable on-topic constituents
+            constituents = [(i, n, r) for (i, n, r, off) in overlapping if not off]
+            if constituents:
+                warning.append(
+                    f"Constituent age brackets that overlap {range_label} "
+                    f"(sum these to approximate the requested range):"
+                )
+                for cid, cname, (cl, ch) in constituents[:10]:
+                    if cl >= lo and ch <= hi:
+                        cover = "fully inside"
+                    elif cl < lo and ch > hi:
+                        cover = "extends both ends"
+                    elif ch > hi:
+                        cover = f"extends past upper bound (covers up to {ch})"
+                    else:
+                        cover = f"extends below lower bound (starts at {cl})"
+                    warning.append(f"  - SDMX {cid}: {cname} [{cover}]")
+                warning.append(
+                    "Either present this list and ask the user which to sum, "
+                    "or fetch each bracket's value and sum them yourself "
+                    f"(subtracting the out-of-range portion if a bracket extends "
+                    f"past {range_label})."
+                )
+            # Flag off-topic exact-range matches so the LLM doesn't use them
+            off_topic_exact = [
+                (i, n) for (i, n, r, off) in overlapping if r == q_age_range and off
+            ]
+            if off_topic_exact:
+                warning.append(
+                    f"NOTE: Some indicators below have the exact range "
+                    f"{range_label} in their name but are about a DIFFERENT "
+                    f"topic (rates, provisions, ratios — not counts). Do NOT "
+                    f"present their values as the requested count:"
+                )
+                for cid, cname in off_topic_exact[:5]:
+                    warning.append(f"  - SDMX {cid}: {cname}")
+            if not constituents and not off_topic_exact:
+                warning.append(
+                    "No age-bracketed alternatives in the top results. Tell the "
+                    "user explicitly that no indicator covers this range; do NOT "
+                    "silently substitute a total-population or unrelated indicator."
+                )
+            output_lines.append("\n".join(warning) + "\n")
 
     output_lines.append(f"Found {len(results)} semantically similar indicator(s):\n")
 
