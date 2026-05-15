@@ -72,6 +72,16 @@ def test_multiplier_unspecified_query_is_neutral():
 
 def test_multiplier_unspecified_indicator_with_query():
     """Query with age range, indicator without (e.g. 'total population')
-    → moderate penalty, not zero — total still partially relevant."""
+    → heavy penalty. Total/aggregate indicators must NOT be presented as
+    answers to age-bracketed questions."""
     score = _age_range_multiplier((0, 14), None)
-    assert 0.4 <= score <= 0.9
+    assert score <= 0.55
+
+
+def test_total_indicator_not_preferred_over_partial_overlap():
+    """When user asks 0-14, neither '8-15 yoshli' nor 'total population'
+    is right — they should be similarly weighted so the cross-encoder /
+    other signals decide rather than 'total' winning by default."""
+    overlap = _age_range_multiplier((0, 14), (8, 15))
+    no_range = _age_range_multiplier((0, 14), None)
+    assert no_range <= overlap  # total must not outrank an actual age bracket

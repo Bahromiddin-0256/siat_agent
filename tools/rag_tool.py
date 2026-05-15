@@ -316,8 +316,10 @@ def _age_range_multiplier(
     """Score how well an indicator's age range matches the query's.
 
     - Query has no range: neutral (1.0) — don't bias.
-    - Query has range, indicator has none: 0.85 — total/aggregate indicators
-      stay viable but lose to better-matched age-bracketed ones.
+    - Query has range, indicator has none: 0.5 — total/aggregate indicators
+      must NOT be presented as answers to age-bracketed questions; equal-
+      penalty with partial-overlap brackets so the cross-encoder decides
+      rather than 'total' winning by default.
     - Exact match: 1.5 — strong bonus.
     - No overlap: 0.3 — heavy penalty (kept above 0 so cross-encoder still has
       a fallback when no age-bracket indicator covers the range at all).
@@ -326,7 +328,7 @@ def _age_range_multiplier(
     if q_range is None:
         return 1.0
     if i_range is None:
-        return 0.85
+        return 0.5
     if q_range == i_range:
         return 1.5
     ql, qh = q_range
@@ -736,7 +738,30 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
         )
         results = [results[i] for i in order]
 
-    output_lines = [f"Found {len(results)} semantically similar indicator(s):\n"]
+    output_lines: list[str] = []
+
+    # If the user named a specific age range and none of the top results
+    # covers it exactly, make that explicit so the LLM doesn't silently
+    # substitute a total-population or near-bracket indicator and present
+    # its value as if it were the requested range.
+    if q_age_range is not None:
+        exact = any(
+            _indicator_age_range((point.payload or {}).get("name")) == q_age_range
+            for point in results
+        )
+        if not exact:
+            lo, hi = q_age_range
+            hi_label = "+" if hi >= 200 else f"-{hi}"
+            range_label = f"{lo}{hi_label}" if hi >= 200 else f"{lo}-{hi}"
+            output_lines.append(
+                f"⚠️ NO EXACT AGE-RANGE MATCH for {range_label}. The catalog "
+                f"does NOT contain an indicator covering exactly {range_label}. "
+                f"Do NOT present any indicator below as if it covers {range_label} — "
+                f"either sum the constituent age brackets, or tell the user no "
+                f"single indicator covers that range and offer the closest options.\n"
+            )
+
+    output_lines.append(f"Found {len(results)} semantically similar indicator(s):\n")
 
     for idx, point in enumerate(results, 1):
         p = point.payload
