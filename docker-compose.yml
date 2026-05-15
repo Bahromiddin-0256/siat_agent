@@ -7,6 +7,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Seed BuildKit's uv cache from the host on first build.
+      # Subsequent builds reuse the BuildKit cache mount directly.
+      additional_contexts:
+        host-uv-cache: ${HOME}/.cache/uv
     image: 172.16.11.58/siat-agent/siat-agent:latest
     container_name: siat-agent
     restart: unless-stopped

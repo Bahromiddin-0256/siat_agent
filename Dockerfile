@@ -16,10 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files (lockfile included so --frozen works)
 COPY pyproject.toml uv.lock ./
 
-# Persistent uv cache across builds via BuildKit cache mount.
+# Persistent uv cache across builds via BuildKit cache mount, seeded from
+# the host's ~/.cache/uv on first build (passed via compose additional_contexts).
 # UV_LINK_MODE=copy avoids hardlink errors when cache is on a different fs.
 ENV UV_LINK_MODE=copy
 RUN --mount=type=cache,target=/root/.cache/uv,id=siat-uv-cache \
+    --mount=type=bind,from=host-uv-cache,target=/host-uv-cache,readonly \
+    if [ -z "$(ls -A /root/.cache/uv 2>/dev/null)" ] && [ -d /host-uv-cache ]; then \
+        echo "Seeding BuildKit uv cache from host..."; \
+        cp -rn /host-uv-cache/. /root/.cache/uv/ 2>/dev/null || true; \
+    fi && \
     uv sync --frozen --no-dev
 
 # Stage 2: Runtime — minimal final image
