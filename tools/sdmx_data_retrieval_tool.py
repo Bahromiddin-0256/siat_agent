@@ -496,19 +496,20 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
                     result_lines.append(f"  {period}: {value} {unit}")
 
         # For single-period region rollups, also emit a pre-formatted markdown
-        # table block. The LLM can copy it verbatim instead of regenerating —
-        # past failures saw 2-4 viloyats silently dropped when the model
-        # rebuilt the table from the prose list above.
+        # table block. The LLM is told (via system prompt rule 0b) to copy
+        # this verbatim — past failures saw 2-4 viloyats silently dropped
+        # when the model rebuilt the table from the prose list and "sorted"
+        # by value.
         if len(matched_periods) == 1:
             period = matched_periods[0]
             result_lines.append("")
             result_lines.append(
-                f"MARKDOWN TABLE — {len(region_rows)} rows, copy verbatim "
-                f"(do NOT drop or summarize any row; translate the header "
-                f"into the user's response language but keep ALL region names "
-                f"and numbers as-is):"
+                f"=== MARKDOWN TABLE ({len(region_rows)} rows) — "
+                f"per system rule 0b, copy EVERY row verbatim into the "
+                f"response, in this exact order, with these exact labels. "
+                f"You may translate the column header only. ==="
             )
-            result_lines.append("```")
+            result_lines.append("```markdown")
             result_lines.append(f"| Hudud | Qiymat ({unit}) |")
             result_lines.append("|---|---|")
             for row in region_rows:
@@ -521,6 +522,9 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
                 value = row.get(period, 'N/A')
                 result_lines.append(f"| {region_name} | {value} |")
             result_lines.append("```")
+            result_lines.append(
+                f"=== END MARKDOWN TABLE ({len(region_rows)} rows above) ==="
+            )
 
         if chart_data:
             push_chart({

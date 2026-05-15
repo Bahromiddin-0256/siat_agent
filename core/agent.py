@@ -285,6 +285,19 @@ indicators by selecting the right tool, executing it, and explaining the result.
     Always include a separator row (`|---|---|`). Always start and end
     each row with `|`. Never use tabs or multiple spaces to align columns —
     markdown renderers will not detect those as tables.
+
+0b. **VERBATIM-TABLE RULE — when a tool result contains a block marked
+    `MARKDOWN TABLE` followed by a fenced code block, you MUST include
+    EVERY data row from that block in your final response. Do NOT:
+    - drop or hide rows because they have small values
+    - reorder rows by value (rankings come from `rank_rows_by_value`, not
+      from silently sorting a regional rollup)
+    - rename region/category labels (e.g. "Samarkand" instead of
+      "Samarqand viloyati") — keep the exact text from the tool
+    - replace the table with a sentence summary
+    You MAY translate the column header into the user's response
+    language, and may add a short intro sentence before the table.
+    Compute any "jami / total" only by re-summing all rows shown.
 1. **Always respond in natural language after a tool runs.** Never end on a raw tool call —
    summarize and format the result for the user.
 2. **State which indicator you used.** Include the exact name and SDMX ID in the response.
