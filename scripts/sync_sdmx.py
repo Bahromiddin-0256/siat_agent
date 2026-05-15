@@ -42,6 +42,14 @@ def main() -> int:
 
     report = sync_sdmx(force_full=args.force, trigger="cron")
 
+    # Close the shared Qdrant client cleanly before interpreter shutdown so
+    # we don't get "ImportError: sys.meta_path is None" from its __del__.
+    try:
+        from tools.qdrant_shared_client import get_shared_client
+        get_shared_client().close()
+    except Exception:
+        pass
+
     summary = {
         "trigger": report.trigger,
         "skipped": report.skipped,
