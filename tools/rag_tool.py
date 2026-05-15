@@ -341,6 +341,71 @@ def _age_range_multiplier(
     return max(0.5, min(1.0, jaccard))
 
 
+_AGE_BRACKET_INDEX_CACHE: list[tuple[int, str, tuple[int, int]]] | None = None
+
+
+def _age_bracket_index() -> list[tuple[int, str, tuple[int, int]]]:
+    """All age-bracketed population/count indicators in the catalog.
+
+    Built by scrolling Qdrant once and cached. Returns (sdmx_id, name, range)
+    for indicators whose name has an age range AND looks like a count
+    (not a rate/share/provision/ratio).
+    """
+    global _AGE_BRACKET_INDEX_CACHE
+    if _AGE_BRACKET_INDEX_CACHE is not None:
+        return _AGE_BRACKET_INDEX_CACHE
+
+    off_topic = (
+        "ta'minlanganligi",
+        "taʼminlanganligi",
+        "darajasi",
+        "indeksi",
+        "ulushi",
+        "tug'ilgan",
+        "tugʻilgan",
+        "o'sish",
+        "oʻsish",
+        "koeffitsienti",
+        "o'lim",
+        "oʻlim",
+    )
+
+    out: list[tuple[int, str, tuple[int, int]]] = []
+    try:
+        client = _get_client()
+        offset = None
+        while True:
+            records, offset = client.scroll(
+                collection_name=_COLLECTION,
+                limit=512,
+                with_payload=True,
+                offset=offset,
+            )
+            for rec in records:
+                p = rec.payload or {}
+                name = p.get("name") or ""
+                rng = _indicator_age_range(name)
+                if rng is None:
+                    continue
+                lower = name.lower()
+                if any(m in lower for m in off_topic):
+                    continue
+                pid = p.get("id")
+                try:
+                    pid_int = int(pid)
+                except (TypeError, ValueError):
+                    continue
+                out.append((pid_int, name, rng))
+            if offset is None:
+                break
+    except Exception:
+        logger.exception("Failed to build age-bracket index")
+        return []
+
+    _AGE_BRACKET_INDEX_CACHE = out
+    return out
+
+
 def _parse_iso_safe(ts: str | None) -> datetime | None:
     """Tolerant ISO-8601 parser. Returns None on any parse error.
 
@@ -797,14 +862,30 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
                 f"The catalog has no single indicator giving a population/count "
                 f"figure for exactly {range_label}."
             ]
-            # Suggest summable on-topic constituents
-            constituents = [(i, n, r) for (i, n, r, off) in overlapping if not off]
+            # Suggest summable on-topic constituents — pull from full catalog
+            # age-bracket index (not just the rerank pool), since population
+            # age brackets often don't surface in dense+sparse search for
+            # range-mismatched queries like "0-14".
+            catalog_brackets = [
+                (cid, cname, crng)
+                for (cid, cname, crng) in _age_bracket_index()
+                if not (crng[1] < lo or crng[0] > hi)  # overlap test
+            ]
+            # Deduplicate against the rerank-pool overlapping list to keep
+            # ordering stable; prefer the catalog-walk list since it's
+            # exhaustive.
+            seen = {cid for cid, _, _ in catalog_brackets}
+            for (i, n, r, off) in overlapping:
+                if not off and i not in seen:
+                    catalog_brackets.append((i, n, r))
+                    seen.add(i)
+            constituents = catalog_brackets
             if constituents:
                 warning.append(
                     f"Constituent age brackets that overlap {range_label} "
                     f"(sum these to approximate the requested range):"
                 )
-                for cid, cname, (cl, ch) in constituents[:10]:
+                for cid, cname, (cl, ch) in constituents[:20]:
                     if cl >= lo and ch <= hi:
                         cover = "fully inside"
                     elif cl < lo and ch > hi:
