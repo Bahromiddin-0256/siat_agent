@@ -1,0 +1,916 @@
+{
+  "endpoint": "http://localhost:8001/chat",
+  "summary": {
+    "total": {
+      "passed": 26,
+      "total": 35,
+      "rate": 0.743
+    },
+    "by_category": {
+      "age_range": {
+        "passed": 2,
+        "total": 5,
+        "rate": 0.4
+      },
+      "aggregation": {
+        "passed": 3,
+        "total": 3,
+        "rate": 1.0
+      },
+      "completeness": {
+        "passed": 2,
+        "total": 4,
+        "rate": 0.5
+      },
+      "consistency": {
+        "passed": 4,
+        "total": 4,
+        "rate": 1.0
+      },
+      "edge": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      },
+      "language": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      },
+      "sanity": {
+        "passed": 4,
+        "total": 5,
+        "rate": 0.8
+      },
+      "subset_selection": {
+        "passed": 5,
+        "total": 6,
+        "rate": 0.833
+      }
+    },
+    "by_language": {
+      "en": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1.0
+      },
+      "ru": {
+        "passed": 1,
+        "total": 2,
+        "rate": 0.5
+      },
+      "uz": {
+        "passed": 23,
+        "total": 31,
+        "rate": 0.742
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "age-children-broad-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "Bolalar soni O'zbekistonda 2024",
+      "duration_s": 13.07,
+      "response": "2024-yilda O'zbekiston Respublikasida jami **926,422 nafar** bolalar tug'ilgan.\n\nAgar yana bir yil bilan solishtirish yoki o'sish sur'ati haqida ma'lumot kerak bo'lsa, shart etiladi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "age-elderly-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "60 yoshdan oshgan aholi soni 2024",
+      "duration_s": 180.09,
+      "response": "",
+      "error": "ReadTimeout: timed out",
+      "assertions": [
+        {
+          "type": "request",
+          "passed": false,
+          "detail": "ReadTimeout: timed out"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "age-exact-match-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "8-15 yoshli aholi soni 2024",
+      "duration_s": 33.06,
+      "response": "2024-yilda O'zbekistondagi 8-15 yoshli aholi soni 3 747 630 kishi bo'lgan. Bu jami aholi soni, jumladan Toshkent shahridagi 374 763 kishi ham shu jamlar ichiga kiradi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 600: 8-15 yoshli doimiy aholi soni — https://siat.stat.uz/reports-filed/600/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "age-no-exact-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "0-14 yosh oraligida bolalar soni 2024",
+      "duration_s": 41.55,
+      "response": "| SDMX ID | Ko'rsatkich nomi | Kategoriya | Davriylik | Birligi | 2024-yil uchun ma'lumot mavjudmi? |\n|--------|------------------|------------|------------|----------|----------------------------------|\n| 4227 | Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi | Ijtimoiy statistika > Ijtimoiy soha > Sog‘liqni saqlash | Yillik | O'rin | Yo'q |\n| 4214 | Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi, 10 000 (0-14 yosh) bolalarga nisbatan | Ijtimoiy statistika > Ijtimoiy soha > Sog‘liqni saqlash | Yillik | O'rin/10 000 bolaga | Yo'q |\n| 2905 | Umumta’lim muassasalarida 14 yoshli o‘quvchilari soni | Ijtimoiy statistika > Ijtimoiy soha > Umumiy o‘rta ta’lim | Yillik | Nima | Yo'q |\n| 4130 | Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (o‘gil bolalar) | Ijtimoiy statistika > Demografiya > Demografik ko‘rsatkichlar | Yillik | Foiz | Yo'q |\n| 4129 | Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (qiz bolalar) | Ijtimoiy statistika > Demografiya > Demografik ko‘rsatkichlar | Yillik | Foiz | Yo'q |\n\n2024-yil uchun ma'lumotlar hali e'lon qilinmagan. So'nggi mavjud ma'lumotlar 2023-yilga ega.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 4227: Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi — https://siat.stat.uz/reports-filed/4227/table-data\n- SDMX ID 4214: Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi, 10 000 (0-14 yosh) bolalarga nisbatan — https://siat.stat.uz/reports-filed/4214/table-data\n- SDMX ID 2905: Umumta’lim muassasalarida 14 yoshli o‘quvchilari soni — https://siat.stat.uz/reports-filed/2905/table-data\n- SDMX ID 4130: Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (o‘gil bolalar) — https://siat.stat.uz/reports-filed/4130/table-data\n- SDMX ID 4129: Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (qiz bolalar) — https://siat.stat.uz/reports-filed/4129/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": false,
+          "detail": "banned id(s) cited: [4214, 4227] — off-topic exact-range matches (hospital provision)"
+        },
+        {
+          "type": "no_fabricated_total",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "no_fabricated_total",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "age-working-age-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "Mehnatga layoqatli yoshdagi aholi 2024",
+      "duration_s": 16.39,
+      "response": "2024-yilda O‘zbekiston Respublikasida mehnatga layoqatli yoshdagi aholi soni 19 904.5 ming kishi bo'lgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 521: Mehnatga layoqatli yoshdagi aholi — https://siat.stat.uz/reports-filed/521/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": false,
+          "detail": "none of [3130, 4131, 4132, 4133, 4134] cited; cited=[521]"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "agg-growth-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Aholi soni o'sish foizi 2020 dan 2024 gacha",
+      "duration_s": 75.02,
+      "response": "2020-yildan 2024-yilgacha O‘zbekiston Respublikasidagi mehnatga layoqatli yoshdagi doimiy aholi sonining jami aholi soniga nisbatan ulushi quyidagicha:\n\n| Yil | Qiymat (%) | Yillik o'sish (%) |\n|-----|------------|-------------------|\n| 2020 | 58.8       | —                 |\n| 2021 | 58.3       | -0.85%            |\n| 2022 | 57.6       | -1.20%            |\n| 2023 | 56.9       | -1.22%            |\n| 2024 | 56.4       | -0.88%            |\n\nBu davrda mehnatga layoqatli yoshdagi aholi jami aholi soniga nisbatan ulushi 2020-yildan 2024-yilgacha o'rtacha yillik 1% li pasayish bilan kamaydi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 3130: Mehnatga layoqatli yoshdagi doimiy aholi soninig jami aholi soniga nisbatan ulushi — https://siat.stat.uz/reports-filed/3130/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains_regex",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "agg-multiyear-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Aholi soni 2020 va 2024 yillarda",
+      "duration_s": 34.88,
+      "response": "| Davr | Qiymat (ming kishi) | O'sish % |\n|------|---------------------|----------|\n| 2020 | 33905.2           | —        |\n| 2024 | 36799.8           | +8.54%   |\n\n**Xulosa:** 2020-yildan 2024-yilgacha O'zbekistondagi aholi soni 33905.2 ming kishidan 36799.8 ming kishigacha o'sdi. Bu davr davomida o'sish 8.54% tashkil qildi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "agg-share-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Toshkent shahrining O'zbekiston aholisidagi ulushi 2024",
+      "duration_s": 68.4,
+      "response": "2024-yilda Toshkent shahri aholisining O'zbekiston Respublikasining umumiy aholi sonidagi ulushi quyidagicha hisoblanadi:\n\n- Toshkent shahri aholi soni: **3,040.8 ming kishi**\n- O'zbekiston Respublikasining umumiy aholi soni: **36,799.8 ming kishi**\n- Toshkent shahri aholisining ulushi: **8.26%**\n\nBu jadvaldan Toshkent shahri aholisi O'zbekiston aholisining 8.26%ini tashkil qilishidan ko'rinadi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains_regex",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-births-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "2023 yilda viloyatlar bo'yicha tug'ilganlar soni",
+      "duration_s": 107.2,
+      "response": "2023 yilda viloyatlar bo'yicha tug'ilganlar soni quyidagi jadvalda keltirilgan:\n\n| Vazirlik | Tug'ilganlar soni (kishi) |\n|----------|--------------------------|\n| Andijon viloyati | 89400.0 |\n| Buxoro viloyati | 46617.0 |\n| Jizzax viloyati | 40875.0 |\n| Qashqadaryo viloyati | 101852.0 |\n| Navoiy viloyati | 26805.0 |\n| Namangan viloyati | 84496.0 |\n| Samarqand viloyati | 113986.0 |\n| Surxondaryo viloyati | 87695.0 |\n| Sirdaryo viloyati | 23229.0 |\n| Toshkent viloyati | 73171.0 |\n| Farg‘ona viloyati | 106497.0 |\n| Xorazm viloyati | 48301.0 |\n\nAgar batafsilroq ma'lumot kerak bo'lsa, yoki boshqa yillardagi ma'lumotlar talab qilinsa, iltimos, qo'shimcha so'rov yuboring.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": false,
+          "detail": "table has 12 data rows, expected >= 14"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "complete-population-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Viloyatlar bo'yicha aholi soni 2024",
+      "duration_s": 64.24,
+      "response": "2024-yilda O'zbekiston Respublikasidagi viloyatlarda doimiy aholi soni quyidagicha:\n\n| Viloyat | Aholi soni (ming kishi) |\n|--------|------------------------|\n| Toshkent viloyati | 3 051,8 |\n| Namangan viloyati | 3 066,1 |\n| Farg‘ona viloyati | 4 061,5 |\n| Andijon viloyati | 3 394,4 |\n| Sirdaryo viloyati | 914,0 |\n| Jizzax viloyati | 1 507,4 |\n| Xorazm viloyati | 1 995,6 |\n| Buxoro viloyati | 2 044,0 |\n| Qashqadaryo viloyati | 3 560,6 |\n| Surxondaryo viloyati | 2 877,1 |\n| Samarqand viloyati | 4 208,5 |\n| Navoiy viloyati | 1 075,3 |\n\nEslatma: \"Toshkent shahri\" hamda \"Qoraqalpog‘iston Respublikasi\" \"viloyatlar\" sifatida qaralmaydi. Agar batafsilroq ma'lumot kerak bo'lsa, aytib o'ting.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": false,
+          "detail": "table has 12 data rows, expected >= 14"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "complete-rural-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Qishloq aholisi viloyatlar kesimida 2024",
+      "duration_s": 31.33,
+      "response": "2024-yilda O'zbekistondagi qishloq aholisi miqdori viloyatlarda quyidagicha bo'ldi:\n\n| Vaziyat | Qiymat (ming kishi) |\n|--------|---------------------|\n| O‘zbekiston Respublikasi | 18028.7 |\n| Qoraqalpog‘iston Respublikasi | 1024.5 |\n| Andijon viloyati | 1622.0 |\n| Buxoro viloyati | 1290.2 |\n| Jizzax viloyati | 800.1 |\n| Qashqadaryo viloyati | 2036.5 |\n| Navoiy viloyati | 547.0 |\n| Namangan viloyati | 1076.7 |\n| Samarqand viloyati | 2665.6 |\n| Surxondaryo viloyati | 1836.1 |\n| Sirdaryo viloyati | 520.5 |\n| Toshkent viloyati | 1522.6 |\n| Farg‘ona viloyati | 1751.2 |\n| Xorazm viloyati | 1335.7 |\n\nBu ma'lumotlar 2024-yilga oid qishloq aholi sonini viloyatlarda ko'rsatadi. Agar batafsil ma'lumot kerak bo'lsa, alohida viloyatlardagi aholi soni ham mavjud.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 247: Doimiy aholi soni (qishloq) — https://siat.stat.uz/reports-filed/247/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "not_contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-urban-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Shahar joylarda aholi soni viloyatlar bo'yicha 2024",
+      "duration_s": 63.49,
+      "response": "2024-yilda O'zbekiston Respublikasining shahar joylarida aholi soni viloyatlardagi tarqoq quyidagicha edi. Ma'lumotlar SDMX ID 248 (\"Doimiy aholi soni (shahar)\") asosida olingan, o'lchov birligi — ming kishi.\n\n| Viloyat / Shahar | Aholi soni (ming kishi) |\n|------------------|------------------------|\n| O‘zbekiston Respublikasi | 18771.1                |\n| Toshkent shahri | 3040.8                 |\n| Farg‘ona  viloyati | 2310.3               |\n| Namangan viloyati | 1989.4                |\n| Qashqadaryo viloyati | 1524.1              |\n| Samarqand viloyati | 1542.9               |\n| Navoiy viloyati | 528.3                  |\n| Surxondaryo viloyati | 1041.0             |\n| Sirdaryo viloyati | 393.5                |\n| Jizzax viloyati | 707.3                  |\n| Buxoro viloyati | 753.8                  |\n| Toshkent viloyati | 1529.2               |\n| Xorazm viloyati | 659.9                  |\n| Andijon viloyati | 1772.4                |\n| Qoraqalpog‘iston Respublikasi | 978.2     |\n\nMa'lumotlar manbasi: [SIAT — Doimiy aholi soni (shahar)](https://siat.stat.uz/reports-filed/248/table-data)",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-pop-phrasing-1-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "Aholi soni qancha 2024",
+      "duration_s": 96.63,
+      "response": "2024-yilda O'zbekiston Respublikasida aholi soni 36 799,8 ming kishi bo'ldi. Quyida aholi sonining hududiy taqsimoti jadvali keltirilgan:\n\n| Hudud | Aholi soni (ming kishi) |\n|-------|------------------------|\n| O‘zbekiston Respublikasi | 36 799.8 |\n| Qoraqalpog‘iston Respublikasi | 2 002.7 |\n| Nukus shahri | 339.2 |\n| Amudaryo tumani | 212.1 |\n| Beruniy tumani | 205.1 |\n| Bo‘zatov tumani | 21.9 |\n| Qorao‘zak tumani | 54.4 |\n| Kegeyli tumani | 74.8 |\n| Qo‘ng‘irot tumani | 136.0 |\n| Qanliko‘l tumani | 53.8 |\n| Mo‘ynoq tumani | 33.6 |\n| Nukus tumani | 53.9 |\n| Taxiatosh tumani | 76.8 |\n| Taxtako‘pir tumani | 38.9 |\n| To‘rtko‘l tumani | 228.8 |\n| Xo‘jayli tumani | 128.7 |\n| Chimboy tumani | 115.7 |\n| Shumanay tumani | 58.0 |\n| Ellikkala tumani | 171.0 |\n| Andijon viloyati | 3 394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Oltinko‘l tumani | 192.1 |\n| Andijon tumani | 286.1 |\n| Baliqchi tumani | 215.8 |\n| Bo‘ston tumani | 77.9 |\n| Buloqboshi tumani | 153.1 |\n| Jalaquduq tumani | 198.8 |\n| Izboskan tumani | 255.3 |\n| Ulug‘nor tumani | 63.8 |\n| Qo‘rg‘ontepa tumani | 230.4 |\n| Asaka tumani | 355.0 |\n| Marxamat tumani | 186.4 |\n| Shaxrixon tumani | 324.4 |\n| Paxtaobod tumani | 208.7 |\n| Xo‘jaobod tumani | 120.0 |\n| Buxoro viloyati | 2 044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Olot tumani | 104.3 |\n| Buxoro tumani | 178.4 |\n| Vobkent tumani | 148.7 |\n| G‘ijduvon tumani | 322.5 |\n| Kogon tumani | 84.6 |\n| Qorako‘l tumani | 171.8 |\n| Qorovulbozor tumani | 19.9 |\n| Peshku tumani | 131.2 |\n| Romitan tumani | 151.4 |\n| Jondor tumani | 185.5 |\n| Shofirkon tumani | 186.5 |\n| Jizzax viloyati | 1 507.4 |\n| Jizzax shahri | 195.8 |\n| Arnasoy tumani | 48.7 |\n| Baxmal tumani | 170.6 |\n| G‘allaorol tumani | 186.9 |\n| Sharof Rashidov tumani | 243.1 |\n| Do‘stlik tumani | 70.0 |\n| Zomin tumani | 179.5 |\n| Zarbdor tumani | 94.6 |\n| Mirzacho‘l tumani | 55.4 |\n| Zafarobod tumani | 53.7 |\n| Paxtakor tumani | 80.9 |\n| Forish tumani | 98.4 |\n| Yangiobod tumani | 29.8 |\n| Qashqadaryo viloyati | 3 560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Ko‘kdala tumani | 188.7 |\n| G‘uzor tumani | 222.2 |\n| Dehqonobod tumani | 159.5 |\n| Qamashi tumani | 293.1 |\n| Qarshi tumani | 272.1 |\n| Koson tumani | 312.1 |\n| Kitob tumani | 282.0 |\n| Mirishkor tumani | 129.6 |\n| Muborak tumani | 93.4 |\n| Nishon tumani | 166.6 |\n| Kasbi tumani | 213.0 |\n| Chiroqchi tumani | 267.9 |\n| Shahrisabz tumani | 235.1 |\n| Yakkabog‘ tumani | 282.5 |\n| Navoiy viloyati | 1 075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Konimex tumani | 37.4 |\n| Qiziltepa tumani | 161.8 |\n| Navbahor tumani | 120.8 |\n| Karmana tumani | 138.8 |\n| Nurota tumani | 89.6 |\n| Tomdi tumani | 15.5 |\n| Uchquduq tumani | 39.3 |\n| Xatirchi tumani | 213.2 |\n| Namangan viloyati | 3 066.1 |\n| Namangan shahri | 696.5 |\n| Mingbuloq tumani | 136.9 |\n| Kosonsoy tumani | 227.9 |\n| Namangan tumani | 192.7 |\n| Norin tumani | 175.8 |\n| Pop tumani | 235.7 |\n| To‘raqo‘rg‘on tumani | 245.2 |\n| Uychi tumani | 232.4 |\n| Uchqo‘rg‘on tumani | 185.4 |\n| Chortoq tumani | 214.9 |\n| Chust tumani | 285.6 |\n| Yangiqo‘rg‘on tumani | 237.1 |\n| Samarqand viloyati | 4 208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Oqdaryo tumani | 173.2 |\n| Bulung‘ur tumani | 202.0 |\n| Jomboy tumani | 189.5 |\n| Ishtixon tumani | 275.9 |\n| Kattaqo‘rg‘on tumani | 293.8 |\n| Qo‘shrabot tumani | 141.9 |\n| Narpay tumani | 227.4 |\n| Payariq tumani | 273.3 |\n| Pastdarg‘om tumani | 383.3 |\n| Paxtachi tumani | 152.3 |\n| Samarqand tumani | 272.8 |\n| Nurobod tumani | 162.7 |\n| Urgut tumani | 559.2 |\n| Tayloq tumani | 221.1 |\n| Surxondaryo viloyati | 2 877.1 |\n| Termiz shahri | 201.6 |\n| Oltinsoy tumani | 192.6 |\n| Angor tumani | 143.8 |\n| Bandixon tumani | 83.0 |\n| Boysun tumani | 124.6 |\n| Muzrabot tumani | 153.6 |\n| Denov tumani | 420.2 |\n| Jarqo‘rg‘on tumani | 238.4 |\n| Qumqo‘rg‘on tumani | 255.5 |\n| Qiziriq tumani | 124.0 |\n| Sariosiyo tumani | 228.0 |\n| Termiz tumani | 84.7 |\n| Uzun tumani | 187.8 |\n| Sherobod tumani | 210.8 |\n| Sho‘rchi tumani | 228.5 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Oqoltin tumani | 55.8 |\n| Boyovut tumani | 138.9 |\n| Sayxunobod tumani | 82.8 |\n| Guliston tumani | 79.6 |\n| Sardoba tumani | 70.3 |\n| Mirzaobod tumani | 80.5 |\n| Sirdaryo tumani | 137.1 |\n| Xovos tumani | 102.3 |\n| Toshkent viloyati | 3 051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Oqqo‘rg‘on tumani | 112.1 |\n| Ohangaron tumani | 111.2 |\n| Bekobod tumani | 165.7 |\n| Bo‘stonliq tumani | 176.7 |\n| Bo‘ka tumani | 134.4 |\n| Quyichirchiq tumani | 115.9 |\n| Zangiota tumani | 171.2 |\n| Yuqorichirchiq tumani | 139.2 |\n| Qibray tumani | 175.4 |\n| Parkent tumani | 178.2 |\n| Piskent tumani | 101.5 |\n| O‘rtachirchiq tumani | 137.0 |\n| Chinoz tumani | 145.5 |\n| Yangiyo‘l tumani | 200.0 |\n| Toshkent tumani | 198.5 |\n| Farg‘ona  viloyati | 4 061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Oltiariq tumani | 228.4 |\n| Qo‘shtepa tumani | 208.0 |\n| Bog‘dod tumani | 233.0 |\n| Buvayda tumani | 247.2 |\n| Beshariq tumani | 242.8 |\n| Quva tumani | 275.8 |\n| Uchko‘prik tumani | 241.4 |\n| Rishton tumani | 216.9 |\n| So‘x tumani | 83.9 |\n| Toshloq tumani | 217.6 |\n| O‘zbekiston tumani | 236.4 |\n| Farg‘ona tumani | 221.5 |\n| Dang‘ara tumani | 177.1 |\n| Furqat tumani | 127.1 |\n| Yozyovon tumani | 119.8 |\n| Xorazm viloyati | 1 995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Bog‘ot tumani | 176.1 |\n| Gurlan tumani | 157.2 |\n| Qo‘shko‘pir tumani | 182.3 |\n| Urganch tumani | 213.5 |\n| Xazorasp tumani | 206.0 |\n| Tuproqqal’a tumani | 59.3 |\n| Xonqa tumani | 198.4 |\n| Xiva tumani | 154.8 |\n| Shovot tumani | 180.4 |\n| Yangiariq tumani | 123.2 |\n| Yangibozor tumani | 92.5 |\n| Toshkent shahri | 3 040.8 |\n| Uchtepa tumani | 299.4 |\n| Bektemir tumani | 60.5 |\n| Yunusobod tumani | 376.1 |\n| Mirzo Ulug‘bek tumani | 331.2 |\n| Mirobod tumani | 152.2 |\n| Shayxontoxur tumani | 365.4 |\n| Olmazor tumani | 404.4 |\n| Sirg‘ali tumani | 168.2 |\n| Yakkasaroy tumani | 133.5 |\n| Yashnobod tumani | 300.1 |\n| Yangihayot tumani | 174.7 |\n| Chilonzor tumani | 275.1 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-pop-phrasing-2-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "O'zbekistonda nechta odam bor 2024",
+      "duration_s": 94.27,
+      "response": "2024-yilda O'zbekistonda doimiy aholi soni 36 799,8 ming kishi bo'lgan. Aholi soni bo'yicha hududlar jadvalda ko'rsatilgan.\n\n| Hudud | Aholi soni (ming kishi) |\n|-------|--------------------------|\n| O‘zbekiston Respublikasi | 36 799.8 |\n| Qoraqalpog‘iston Respublikasi | 2 002.7 |\n| Toshkent shahri | 3 040.8 |\n| Andijon viloyati | 3 394.4 |\n| Buxoro viloyati | 2 044.0 |\n| Jizzax viloyati | 1 507.4 |\n| Qashqadaryo viloyati | 3 560.6 |\n| Navoiy viloyati | 1 075.3 |\n| Namangan viloyati | 3 066.1 |\n| Samarqand viloyati | 4 208.5 |\n| Surxondaryo viloyati | 2 877.1 |\n| Sirdaryo viloyati | 914.0 |\n| Toshkent viloyati | 3 051.8 |\n| Farg‘ona viloyati | 4 061.5 |\n| Xorazm viloyati | 1 995.6 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-pop-phrasing-3-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "2024 yilda jami aholimiz nechta?",
+      "duration_s": 16.71,
+      "response": "2024-yilda O‘zbekiston Respublikasida jami aholi soni 36 799,8 ming kishi bo'lgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-unemployment-phrasing-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "Ishsiz odamlar foizi 2024",
+      "duration_s": 22.1,
+      "response": "2024-yilda O'zbekistondagi ishsizlik darajasi 5.5% ni tashkil qildi.\n\nAgar batafsil ma'lumot kerak bo'lsa, quyidagi havolaga murojaat qilishingiz mumkin:\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 1875: Ishsizlik darajasi — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-ambiguous-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "narxlar",
+      "duration_s": 7.56,
+      "response": "Narxlar mavzusiga oid statistik ko'rsatkichlarni topish uchun qidiruv amalga oshirilmoqda. Quyida eng mos SDMX ko'rsatkichlar ro'yxati keltirilgan:\n\n1. **SDMX ID 2322**: \"Ijtimoiy-iqtisodiy ko'rsatkichlar, narxlar va me'yorlar\" — https://siat.stat.uz/reports-filed/2322/table-data\n2. **SDMX ID 2323**: \"Ijtimoiy-iqtisodiy ko'rsatkichlar, me'yorlar\" — https://siat.stat.uz/reports-filed/2323/table-data\n3. **SDMX ID 2324**: \"Ijtimoiy-iqtisodiy ko'rsatkichlar, narxlar\" — https://siat.stat.uz/reports-filed/2324/table-data\n\nAgar batafsil ma'lumot kerak bo'lsa, 2322 SDMX ID orqali narxlar va me'yorlar haqida to'liq ma'lumot olish mumkin.",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-future-year-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "2030 yil O'zbekiston aholisi",
+      "duration_s": 26.54,
+      "response": "2030-yilda O'zbekiston Respublikasining doimiy aholi soni uchun quyidagi ma'lumotlar mavjud:\n\n- **Ko'rsatkich:** SDMX ID 246 — Doimiy aholi soni (jami)\n- **2026-yil aholi soni:** 38 236.7 ming kishi\n- **2030-yil aholi soni (tasvir):** ≈ 41 451.4 ming kishi\n\nBu qiymat 2022–2026-yillar davomida yillik o'sish (CAGR) — +2.04% asosida hisoblangan. Shuni ta'kidlamoqda, bu SIAT tomonidan rasmiy berilgan prognoz emas. Haqiqiy aholi soni tashqi omillarga (migratsiya, siyosat, demografik o'zgarishlar) qarab o'zgarishi mumkin.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "says_unavailable",
+          "passed": false,
+          "detail": "response did not acknowledge unavailability"
+        },
+        {
+          "type": "not_contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "edge-typo-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "aholi soni 2024 yli",
+      "duration_s": 30.17,
+      "response": "2024-yilda O'zbekiston Respublikasida doimiy aholi soni 36 799.8 ming kishi bo'lgan. Bu ma'lumotlar 2024-yil uchun e'lon qilingan doimiy aholi soni bo'lib, proyeksiya yoki bashorat emas.\n\nQuyidagi jadvalda aholi soni bo'yicha mamlakatning bir qancha hududlaridagi ma'lumotlar keltirilgan:\n\n| Hudud | Aholi soni (ming kishi) |\n|------|-------------------------|\n| O‘zbekiston Respublikasi | 36 799.8 |\n| Qoraqalpog‘iston Respublikasi | 2 002.7 |\n| Toshkent shahri | 3 040.8 |\n| Andijon viloyati | 3 394.4 |\n| Namangan viloyati | 3 066.1 |\n| Farg‘ona viloyati | 4 061.5 |\n| Sirdaryo viloyati | 914.0 |\n| Surxondaryo viloyati | 2 877.1 |\n| Samarqand viloyati | 4 208.5 |\n| Navoiy viloyati | 1 075.3 |\n| Qashqadaryo viloyati | 3 560.6 |\n| Jizzax viloyati | 1 507.4 |\n| Buxoro viloyati | 2 044.0 |\n| Toshkent viloyati | 3 051.8 |\n| Xorazm viloyati | 1 995.6 |\n\nAgar boshqa hududlar uchun aholi sonini bilishni xohlasangiz, iltimos, kerakli hududni ko'rsating.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-very-old-year-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "1985 yil aholi soni",
+      "duration_s": 53.15,
+      "response": "1985-yil aholi soni uchun ma'lumot mavjud emas. Mavjud ma'lumotlar 2010-yildan boshlanadi. Agar 2010-yildan keyingi aholi soni haqida ma'lumot kerak bo'lsa, quyidagi jadvaldan foydalaning:\n\n| Yil | Aholi soni (ming kishi) |\n|-----|--------------------------|\n| 2010 | 29 993.5                |\n| 2011 | 30 492.8                |\n| 2012 | 30 991.4                |\n| 2013 | 31 489.2                |\n| 2014 | 31 986.3                |\n| 2015 | 32 482.7                |\n| 2016 | 32 978.4                |\n| 2017 | 33 473.4                |\n| 2018 | 33 967.7                |\n| 2019 | 34 461.3                |\n| 2020 | 34 954.2                |\n| 2021 | 35 446.4                |\n| 2022 | 35 937.9                |\n| 2023 | 36 428.7                |\n| 2024 | 36 918.8                |\n| 2025 | 37 408.2                |\n| 2026 | 37 896.9                |\n\nAgar 2010-yildan keyingi aholi soni o'sishini bilishni xohlasangiz, quyidagi jadvaldan foydalaning:\n\n| Yil | Aholi soni (ming kishi) | Yillik o'sish (%) |\n|-----|--------------------------|-------------------|\n| 2010 | 29 993.5                | —                 |\n| 2011 | 30 492.8                | +1.66%            |\n| 2012 | 30 991.4                | +1.63%            |\n| 2013 | 31 489.2                | +1.61%            |\n| 2014 | 31 986.3                | +1.58%            |\n| 2015 | 32 482.7                | +1.55%            |\n| 2016 | 32 978.4                | +1.52%            |\n| 2017 | 33 473.4                | +1.49%            |\n| 2018 | 33 967.7                | +1.47%            |\n| 2019 | 34 461.3                | +1.45%            |\n| 2020 | 34 954.2                | +1.43%            |\n| 2021 | 35 446.4                | +1.41%            |\n| 2022 | 35 937.9                | +1.39%            |\n| 2023 | 36 428.7                | +1.37%            |\n| 2024 | 36 918.8                | +1.35%            |\n| 2025 | 37 408.2                | +1.33%            |\n| 2026 | 37 896.9                | +1.31%            |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni  (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-english-pop-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Population of Uzbekistan in 2024",
+      "duration_s": 160.97,
+      "response": "The population of Uzbekistan in 2024 was **36,799.8 thousand people**, as reported by the indicator \"Doimiy aholi soni (jami)\" (SDMX ID 246), which represents the total permanent population.\n\nHere is the breakdown by region:\n\n| Region | Population (thousand people) |\n|--------|------------------------------|\n| O‘zbekiston Respublikasi | 36,799.8 |\n| Qoraqalpog‘iston Respublikasi | 2,002.7 |\n| Nukus shahri | 339.2 |\n| Amudaryo tumani | 212.1 |\n| Beruniy tumani | 205.1 |\n| Bo‘zatov tumani | 21.9 |\n| Qorao‘zak tumani | 54.4 |\n| Kegeyli tumani | 74.8 |\n| Qo‘ng‘irot tumani | 136.0 |\n| Qanliko‘l tumani | 53.8 |\n| Mo‘ynoq tumani | 33.6 |\n| Nukus tumani | 53.9 |\n| Taxiatosh tumani | 76.8 |\n| Taxtako‘pir tumani | 38.9 |\n| To‘rtko‘l tumani | 228.8 |\n| Xo‘jayli tumani | 128.7 |\n| Chimboy tumani | 115.7 |\n| Shumanay tumani | 58.0 |\n| Ellikkala tumani | 171.0 |\n| Andijon viloyati | 3,394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Oltinko‘l tumani | 192.1 |\n| Andijon tumani | 286.1 |\n| Baliqchi tumani | 215.8 |\n| Bo‘ston tumani | 77.9 |\n| Buloqboshi tumani | 153.1 |\n| Jalaquduq tumani | 198.8 |\n| Izboskan tumani | 255.3 |\n| Ulug‘nor tumani | 63.8 |\n| Qo‘rg‘ontepa tumani | 230.4 |\n| Asaka tumani | 355.0 |\n| Marxamat tumani | 186.4 |\n| Shaxrixon tumani | 324.4 |\n| Paxtaobod tumani | 208.7 |\n| Xo‘jaobod tumani | 120.0 |\n| Buxoro viloyati | 2,044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Olot tumani | 104.3 |\n| Buxoro tumani | 178.4 |\n| Vobkent tumani | 148.7 |\n| G‘ijduvon tumani | 322.5 |\n| Kogon tumani | 84.6 |\n| Qorako‘l tumani | 171.8 |\n| Qorovulbozor tumani | 19.9 |\n| Peshku tumani | 131.2 |\n| Romitan tumani | 151.4 |\n| Jondor tumani | 185.5 |\n| Shofirkon tumani | 186.5 |\n| Jizzax viloyati | 1,507.4 |\n| Jizzax shahri | 195.8 |\n| Arnasoy tumani | 48.7 |\n| Baxmal tumani | 170.6 |\n| G‘allaorol tumani | 186.9 |\n| Sharof Rashidov tumani | 243.1 |\n| Do‘stlik tumani | 70.0 |\n| Zomin tumani | 179.5 |\n| Zarbdor tumani | 94.6 |\n| Mirzacho‘l tumani | 55.4 |\n| Zafarobod tumani | 53.7 |\n| Paxtakor tumani | 80.9 |\n| Forish tumani | 98.4 |\n| Yangiobod tumani | 29.8 |\n| Qashqadaryo viloyati | 3,560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Ko‘kdala tumani | 188.7 |\n| G‘uzor tumani | 222.2 |\n| Dehqonobod tumani | 159.5 |\n| Qamashi tumani | 293.1 |\n| Qarshi tumani | 272.1 |\n| Koson tumani | 312.1 |\n| Kitob tumani | 282.0 |\n| Mirishkor tumani | 129.6 |\n| Muborak tumani | 93.4 |\n| Nishon tumani | 166.6 |\n| Kasbi tumani | 213.0 |\n| Chiroqchi tumani | 267.9 |\n| Shahrisabz tumani | 235.1 |\n| Yakkabog‘ tumani | 282.5 |\n| Navoiy viloyati | 1,075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Konimex tumani | 37.4 |\n| Qiziltepa tumani | 161.8 |\n| Navbahor tumani | 120.8 |\n| Karmana tumani | 138.8 |\n| Nurota tumani | 89.6 |\n| Tomdi tumani | 15.5 |\n| Uchquduq tumani | 39.3 |\n| Xatirchi tumani | 213.2 |\n| Namangan viloyati | 3,066.1 |\n| Namangan shahri | 696.5 |\n| Mingbuloq tumani | 136.9 |\n| Kosonsoy tumani | 227.9 |\n| Namangan tumani | 192.7 |\n| Norin tumani | 175.8 |\n| Pop tumani | 235.7 |\n| To‘raqo‘rg‘on tumani | 245.2 |\n| Uychi tumani | 232.4 |\n| Uchqo‘rg‘on tumani | 185.4 |\n| Chortoq tumani | 214.9 |\n| Chust tumani | 285.6 |\n| Yangiqo‘rg‘on tumani | 237.1 |\n| Samarqand viloyati | 4,208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Oqdaryo tumani | 173.2 |\n| Bulung‘ur tumani | 202.0 |\n| Jomboy tumani | 189.5 |\n| Ishtixon tumani | 275.9 |\n| Kattaqo‘rg‘on tumani | 293.8 |\n| Qo‘shrabot tumani | 141.9 |\n| Narpay tumani | 227.4 |\n| Payariq tumani | 273.3 |\n| Pastdarg‘om tumani | 383.3 |\n| Paxtachi tumani | 152.3 |\n| Samarqand tumani | 272.8 |\n| Nurobod tumani | 162.7 |\n| Urgut tumani | 559.2 |\n| Tayloq tumani | 221.1 |\n| Surxondaryo viloyati | 2,877.1 |\n| Termiz shahri | 201.6 |\n| Oltinsoy tumani | 192.6 |\n| Angor tumani | 143.8 |\n| Bandixon tumani | 83.0 |\n| Boysun tumani | 124.6 |\n| Muzrabot tumani | 153.6 |\n| Denov tumani | 420.2 |\n| Jarqo‘rg‘on tumani | 238.4 |\n| Qumqo‘rg‘on tumani | 255.5 |\n| Qiziriq tumani | 124.0 |\n| Sariosiyo tumani | 228.0 |\n| Termiz tumani | 84.7 |\n| Uzun tumani | 187.8 |\n| Sherobod tumani | 210.8 |\n| Sho‘rchi tumani | 228.5 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Oqoltin tumani | 55.8 |\n| Boyovut tumani | 138.9 |\n| Sayxunobod tumani | 82.8 |\n| Guliston tumani | 79.6 |\n| Sardoba tumani | 70.3 |\n| Mirzaobod tumani | 80.5 |\n| Sirdaryo tumani | 137.1 |\n| Xovos tumani | 102.3 |\n| Toshkent viloyati | 3,051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Oqqo‘rg‘on tumani | 112.1 |\n| Ohangaron tumani | 111.2 |\n| Bekobod tumani | 165.7 |\n| Bo‘stonliq tumani | 176.7 |\n| Bo‘ka tumani | 134.4 |\n| Quyichirchiq tumani | 115.9 |\n| Zangiota tumani | 171.2 |\n| Yuqorichirchiq tumani | 139.2 |\n| Qibray tumani | 175.4 |\n| Parkent tumani | 178.2 |\n| Piskent tumani | 101.5 |\n| O‘rtachirchiq tumani | 137.0 |\n| Chinoz tumani | 145.5 |\n| Yangiyo‘l tumani | 200.0 |\n| Toshkent tumani | 198.5 |\n| Farg‘ona  viloyati | 4,061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Oltiariq tumani | 228.4 |\n| Qo‘shtepa tumani | 208.0 |\n| Bog‘dod tumani | 233.0 |\n| Buvayda tumani | 247.2 |\n| Beshariq tumani | 242.8 |\n| Quva tumani | 275.8 |\n| Uchko‘prik tumani | 241.4 |\n| Rishton tumani | 216.9 |\n| So‘x tumani | 83.9 |\n| Toshloq tumani | 217.6 |\n| O‘zbekiston tumani | 236.4 |\n| Farg‘ona tumani | 221.5 |\n| Dang‘ara tumani | 177.1 |\n| Furqat tumani | 127.1 |\n| Yozyovon tumani | 119.8 |\n| Xorazm viloyati | 1,995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Bog‘ot tumani | 176.1 |\n| Gurlan tumani | 157.2 |\n| Qo‘shko‘pir tumani | 182.3 |\n| Urganch tumani | 213.5 |\n| Xazorasp tumani | 206.0 |\n| Tuproqqal’a tumani | 59.3 |\n| Xonqa tumani | 198.4 |\n| Xiva tumani | 154.8 |\n| Shovot tumani | 180.4 |\n| Yangiariq tumani | 123.2 |\n| Yangibozor tumani | 92.5 |\n| Toshkent shahri | 3,040.8 |\n| Uchtepa tumani | 299.4 |\n| Bektemir tumani | 60.5 |\n| Yunusobod tumani | 376.1 |\n| Mirzo Ulug‘bek tumani | 331.2 |\n| Mirobod tumani | 152.2 |\n| Shayxontoxur tumani | 365.4 |\n| Olmazor tumani | 404.4 |\n| Sirg‘ali tumani | 168.2 |\n| Yakkasaroy tumani | 133.5 |\n| Yashnobod tumani | 300.1 |\n| Yangihayot tumani | 174.7 |\n| Chilonzor tumani | 275.1 |\n\n---\n\nUsed indicators:\n- SDMX ID 246: Doimiy aholi soni  (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-english-unemployment-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Unemployment rate in Uzbekistan 2024",
+      "duration_s": 8.91,
+      "response": "The unemployment rate in Uzbekistan in 2024 was **5.5%**.\n\n---\n\nUsed indicator:\n- SDMX ID 1875: Unemployment rate — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-russian-gdp-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "ВВП Узбекистана за 2024 год",
+      "duration_s": 14.48,
+      "response": "ВВП Узбекистана в 2024 году составил 1 535 431,7 млрд. сум.\n\n---\n\nИспользованные показатели:\n- SDMX ID 544: Объем валового внутреннего продукта (по методу производства, в текущих ценах, годовой) — https://siat.stat.uz/reports-filed/544/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-russian-pop-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "Численность населения Узбекистана 2024 год",
+      "duration_s": 12.78,
+      "response": "O‘zbekiston Respublikasi 2023: 36024.9 ming kishi\n\n2023-yilda O‘zbekiston Respublikasidagi doimiy aholi soni 36 024,9 ming kishi tashkil qilgan.\n\n---\nИспользованные показатели:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": false,
+          "detail": "expected ru, got uz"
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "sanity-births-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "2023 yilda nechta bola tug'ilgan?",
+      "duration_s": 9.53,
+      "response": "2023-yilda O'zbekiston Respublikasida jami 961 962 nafar bola tug'ilgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-gdp-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Yalpi ichki mahsulot 2024 yil",
+      "duration_s": 17.68,
+      "response": "2024-yilda O'zbekiston Respublikasining Yalpi ichki mahsuloti (yakuniy iste'mol usulida, joriy narxlarda) **1 535 431.7 mlrd. so'm** miqdarda bo'ldi.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 587: Yalpi ichki mahsulot (yakuniy iste’mol usulida, joriy narxlarda, yillik) — https://siat.stat.uz/reports-filed/587/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-pop-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "O'zbekiston aholisi 2024 yil",
+      "duration_s": 26.99,
+      "response": "2024-yilda O'zbekiston Respublikasida doimiy aholi soni **36 799,8 ming kishi** bo'lgan.\n\nAgar batafsil ma'lumot yoki boshqa ko'rsatkichlar haqida ham xabar topsangiz, yozing!\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-tashkent-pop-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Toshkent shahri aholisi 2023 yil",
+      "duration_s": 21.87,
+      "response": "Toshkent shahri aholisi 2023 yil bo'yicha quyidagi ko'rsatkichlar bilan ifodalangan:\n\n1. **ID**: 248  \n   **Nomi**: Doimiy aholi soni (shahar)  \n   **Yillik**  \n   **Kategoriya**: Ijtimoiy statistika > Demografiya > Demografik ko'rsatkichlar > Doimiy aholi soni (shahar)  \n   **Ma'lumot**: Toshkent shahridagi doimiy aholi soni 2023 yilga ko'ra 2 864 400 kishi.  \n\n2. **ID**: 3890  \n   **Nomi**: Doimiy aholi soni (shahar, choraklik)  \n   **Choraklik**  \n   **Kategoriya**: Ijtimoiy statistika > Demografiya > Demografik ko'rsatkichlar > Doimiy aholi soni (shahar, choraklik)  \n   **Ma'lumot**: 2023-yil uchun Toshkent shahridagi doimiy aholi soni choraklik hisobida quyidagicha:  \n   - 2023-Q1: 2 864 400 kishi  \n   - 2023-Q2: 2 865 000 kishi  \n   - 2023-Q3: 2 865 500 kishi  \n   - 2023-Q4: 2 866 000 kishi  \n\n3. **ID**: 2803  \n   **Nomi**: Toshkent shahri bo‘yicha band aholi sonini iqtisodiy faoliyat turlari bo‘yicha taqsimlanishi  \n   **Yillik**  \n   **Kategoriya**: Ijtimoiy statistika > Mehnat bozori > Mehnat resurslari > Toshkent shahri bo‘yicha band aholi sonini iqtisodiy faoliyat turlari bo‘yicha taqsimlanishi  \n   **Ma'lumot**: 2023 yilga ko'ra Toshkent shahridagi band aholi soni iqtisodiy faoliyat turlari bo'yicha quyidagicha taqsimlangan:  \n   - Sanoat: 300 000 kishi  \n   - Xizmat ko'rsatish: 1 200 000 kishi  \n   - Tadbirkorlik: 150 000 kishi  \n   - Boshqa sohalar: 100 000 kishi  \n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 248: Doimiy aholi soni (shahar) — https://siat.stat.uz/reports-filed/248/table-data\n- SDMX ID 3890: Doimiy aholi soni (shahar, choraklik) — https://siat.stat.uz/reports-filed/3890/table-data\n- SDMX ID 2803: Toshkent shahri bo‘yicha band aholi sonini iqtisodiy faoliyat turlari bo‘yicha taqsimlanishi — https://siat.stat.uz/reports-filed/2803/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-unemployment-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Ishsizlik darajasi 2024",
+      "duration_s": 180.11,
+      "response": "",
+      "error": "ReadTimeout: timed out",
+      "assertions": [
+        {
+          "type": "request",
+          "passed": false,
+          "detail": "ReadTimeout: timed out"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "subset-female-total-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Ayollar soni 2024 yil",
+      "duration_s": 10.25,
+      "response": "2024-yilda O‘zbekiston Respublikasida doimiy aholi soni (ayollar) 18 274,8 ming kishi tashkil qilgan.\n\nAgar batafsil ma'lumot kerak bo'lsa yoki boshqa hududlar uchun ayollar soni haqida ma'lumot olishni xohlasangiz, alohida so'rov yuboring.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 244: Doimiy aholi soni (ayol) — https://siat.stat.uz/reports-filed/244/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-female-unemployment-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Ayollarda ishsizlik darajasi 2024",
+      "duration_s": 13.76,
+      "response": "2024-yilda O‘zbekiston Respublikasida ayollarda ishsizlik darajasi 7.4 foizga teng bo'ldi.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 2817: Ishsizlik darajasi (ayollar) — https://siat.stat.uz/reports-filed/2817/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-male-total-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Erkaklar soni 2024 yil",
+      "duration_s": 18.27,
+      "response": "| Davr | Qiymat (ming kishi) | O'sish % |\n|------|---------------------|----------|\n| 2024 | 18 765.8            | —        |\n\n2024-yilda O'zbekiston Respublikasida jami erkaklar aholi soni 18 765.8 ming kishini tashkil qiladi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 3889: Doimiy aholi soni (erkak, choraklik) — https://siat.stat.uz/reports-filed/3889/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-population-neutral-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Aholi soni 2024",
+      "duration_s": 16.53,
+      "response": "2024-yilda O'zbekistondagi aholi soni quyidagicha bo'ldi:\n\n| Hudud | Aholi soni (ming kishi) |\n|-------|--------------------------|\n| O‘zbekiston Respublikasi | 36 799.8 |\n| Qoraqalpog‘iston Respublikasi | 2 002.7 |\n| Toshkent shahri | 3 040.8 |\n\nBu ma'lumotlar SDMX ID 246 — \"Doimiy aholi soni (jami)\" ko'rsatkichidan olingan. Ko'rsatkichning o'lchov birligi — ming kishi, davriylik — yil boshiga. \n\nBu ma'lumotlar uchun rasmiy SIAT doirasidagi jadvalni quyidagi havola orqali tekshirishingiz mumkin:  \nhttps://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-rural-pop-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Qishloq aholisi 2024",
+      "duration_s": 12.58,
+      "response": "2024-yilda O‘zbekiston Respublikasida qishloq aholisi soni 18 028,7 ming kishi bo'lgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 247: Doimiy aholi soni  (qishloq) — https://siat.stat.uz/reports-filed/247/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-urban-pop-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Shahar joylarda aholi 2024",
+      "duration_s": 43.97,
+      "response": "2024-yilda **Toshkent shahrida** jami **1 492.1 ming kishi** aholi istiqomat qilgan. Boshqa viloyatlardagi aholi soni ham quyidagicha:\n\n| Shahar/Viloyat | Aholi soni (ming kishi) |\n|----------------|------------------------|\n| Toshkent shahri | 1 492.1                |\n| Farg‘ona viloyati | 1 157.3              |\n| Namangan viloyati | 1 012.6              |\n| Qashqadaryo viloyati | 772.7              |\n| Samarqand viloyati | 770.3                |\n| Surxondaryo viloyati | 523.7              |\n| Andijon viloyati | 897.5                  |\n| Buxoro viloyati | 379.9                  |\n| Jizzax viloyati | 354.5                  |\n| Navoiy viloyati | 269.5                  |\n| Sirdaryo viloyati | 197.9                |\n| Xorazm viloyati | 330.0                  |\n| Toshkent viloyati | 760.4                |\n| Qoraqalpog‘iston Respublikasi | 490.1 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 4118: Doimiy aholi soni (jami, shahar joylarda) — https://siat.stat.uz/reports-filed/4118/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": false,
+          "detail": "none of [248, 3890] cited; cited=[4118]"
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    }
+  ]
+}

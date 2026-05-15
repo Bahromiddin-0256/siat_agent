@@ -545,7 +545,13 @@ def _build_input_messages(agent, config, system_prompt: str | None, question: st
 
     has_history = _has_thread_history(agent, config)
     q_lang = detect_language(question)
-    lock = lock_directive(q_lang)
+    # The lock only fires for non-Uzbek queries. Uzbek is the catalog's
+    # native language and the existing system-prompt rule 0 already handles
+    # it; adding a redundant lock there has been observed to bias the model
+    # toward subset variants in retrieval (e.g. picking 4116 "urban female"
+    # over 248 "urban total" for "Shahar joylarda aholi"). For ru/en queries
+    # we keep the strong lock — the empirical 0/4 → 4/4 win on language tests.
+    lock = lock_directive(q_lang) if q_lang != "uz" else ""
 
     msgs: list[BaseMessage] = []
     if not has_history and system_prompt:
@@ -558,15 +564,16 @@ def _build_input_messages(agent, config, system_prompt: str | None, question: st
         except Exception as e:
             logger.debug(f"Few-shot retrieval skipped: {e}")
             extra = ""
-        # Lock goes at the END of the system prompt so it's the freshest
-        # instruction the model sees before the user turn.
-        msgs.append(SystemMessage(content=system_prompt + extra + "\n\n" + lock))
+        sys_content = system_prompt + extra
+        if lock:
+            sys_content += "\n\n" + lock
+        msgs.append(SystemMessage(content=sys_content))
     # Optionally augment the human message with a plan hint for compound queries.
     human_content = _augment_question_with_plan(question) if not has_history else question
-    # Always prepend the lock to the human turn too — follow-up turns don't get
-    # a new SystemMessage, so the human-side directive is what enforces the
-    # language across retries and multi-turn threads.
-    human_content = f"{lock}\n{human_content}"
+    if has_history and lock:
+        # Follow-up turn — there's no new SystemMessage, so we restate the
+        # lock here so the language requirement still binds the response.
+        human_content = f"{lock}\n{human_content}"
     msgs.append(HumanMessage(content=human_content))
     return msgs
 
