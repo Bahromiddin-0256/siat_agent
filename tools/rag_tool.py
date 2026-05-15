@@ -121,6 +121,57 @@ _SUBSET_DOC_TEXT = {
 }
 
 
+def build_indicator_text_and_payload(
+    item: dict, path: list[str], catalog_index: int
+) -> tuple[str, dict]:
+    """Build the (embedding text, Qdrant payload) for one catalog item.
+
+    Shared by initialize_rag_vectorstore (bulk indexing) and
+    core.sdmx_sync (incremental upsert) so the embedding format and
+    payload shape stay in one place.
+    """
+    parts = []
+    for fld, label in [
+        ("name", "Name"),
+        ("name_en", "English"),
+        ("name_ru", "Russian"),
+        ("name_uz", "Uzbek"),
+    ]:
+        if item.get(fld):
+            parts.append(f"{label}: {item[fld]}")
+    tags = item.get("tags") or []
+    if tags:
+        parts.append(f"Tags: {', '.join(tags)}")
+    if item.get("period"):
+        parts.append(f"Period: {item['period']}")
+    if item.get("department"):
+        parts.append(f"Department: {item['department']}")
+
+    subset = _detect_subset(
+        item.get("name_uz") or item.get("name"), item.get("name_en")
+    )
+    if subset:
+        parts.append(_SUBSET_DOC_TEXT[subset])
+
+    text = "\n".join(parts)
+    item_id = item.get("id")
+    payload = {
+        "id": str(item_id) if item_id is not None else item.get("code"),
+        "code": item.get("code"),
+        "name": item.get("name"),
+        "name_en": item.get("name_en"),
+        "name_ru": item.get("name_ru"),
+        "period": item.get("period"),
+        "department": item.get("department"),
+        "status": item.get("status"),
+        "path": " > ".join(path + [item.get("name", "")]),
+        "subset": subset,
+        "catalog_index": catalog_index,
+        "updated_xlsx": item.get("updated_xlsx"),
+    }
+    return text, payload
+
+
 def _query_dimension_intent(question: str) -> set[str]:
     """Which demographic / geographic dimensions does the user EXPLICITLY name?
 
@@ -287,27 +338,38 @@ def initialize_rag_vectorstore(
     client = _get_client()
 
     # Skip re-indexing if the collection already has points AND the schema
-    # matches what this version writes. We bump the sentinel field every
-    # time the payload shape changes:
+    # matches what this version writes. Schema markers:
     #   v1 → +subset           (dimension-aware rerank)
     #   v2 → +catalog_index    (catalog-order tiebreaker)
     #   v2 → +updated_xlsx     (freshness multiplier)
-    # The `catalog_index` field is the v2 marker: its presence implies the
-    # whole v2 schema is in the payload.
+    #   v3 → point.id == int(payload["id"])  (incremental sync needs stable IDs)
     try:
         info = client.get_collection(_COLLECTION)
         if info.points_count > 0:
             try:
-                sample = client.scroll(
+                sample_records = client.scroll(
                     collection_name=_COLLECTION, limit=1, with_payload=True
                 )[0]
-                first_payload = sample[0].payload if sample else {}
+                if not sample_records:
+                    raise ValueError("empty collection")
+                sample = sample_records[0]
+                first_payload = sample.payload or {}
                 if "catalog_index" not in first_payload:
                     logger.info(
-                        f"Collection '{_COLLECTION}' missing 'catalog_index' field — "
-                        f"rebuilding to pick up new schema (subset + catalog order + freshness)."
+                        f"Collection '{_COLLECTION}' missing 'catalog_index' — "
+                        f"rebuilding for v2 schema (subset + catalog order + freshness)."
                     )
-                    raise ValueError("schema upgrade needed")
+                    raise ValueError("schema upgrade needed (v2)")
+                try:
+                    expected_id = int(first_payload.get("id"))
+                except (TypeError, ValueError):
+                    raise ValueError("schema upgrade needed (v3: unparseable id)")
+                if sample.id != expected_id:
+                    logger.info(
+                        "Detected old sequential point IDs — "
+                        "rebuilding for v3 schema (point.id = int(sdmx_id))."
+                    )
+                    raise ValueError("schema upgrade needed (v3)")
             except ValueError:
                 pass  # fall through to rebuild
             else:
@@ -337,6 +399,7 @@ def initialize_rag_vectorstore(
     # Extract documents from nested SDMX hierarchy
     texts: list[str] = []
     payloads: list[dict] = []
+    sdmx_ids: list[int] = []
     seen_ids: set = set()
 
     def extract(items: list[dict[str, Any]], path: list[str] | None = None) -> None:
@@ -351,51 +414,12 @@ def initialize_rag_vectorstore(
             if item_id:
                 seen_ids.add(item_id)
 
-            parts = []
-            for field, label in [
-                ("name", "Name"),
-                ("name_en", "English"),
-                ("name_ru", "Russian"),
-                ("name_uz", "Uzbek"),
-            ]:
-                if item.get(field):
-                    parts.append(f"{label}: {item[field]}")
-            tags = item.get("tags", [])
-            if tags:
-                parts.append(f"Tags: {', '.join(tags)}")
-            if item.get("period"):
-                parts.append(f"Period: {item['period']}")
-            if item.get("department"):
-                parts.append(f"Department: {item['department']}")
-
-            subset = _detect_subset(item.get("name_uz") or item.get("name"), item.get("name_en"))
-            if subset:
-                parts.append(_SUBSET_DOC_TEXT[subset])
-
-            texts.append("\n".join(parts))
-            payloads.append(
-                {
-                    "id": str(item_id) if item_id else item.get("code"),
-                    "code": item.get("code"),
-                    "name": item.get("name"),
-                    "name_en": item.get("name_en"),
-                    "name_ru": item.get("name_ru"),
-                    "period": item.get("period"),
-                    "department": item.get("department"),
-                    "status": item.get("status"),
-                    "path": " > ".join(path + [item.get("name", "")]),
-                    "subset": subset,
-                    # Global DFS index — earlier in main.json means more
-                    # prominent in the SIAT catalog UI, used as a small
-                    # tiebreaker at rerank time.
-                    "catalog_index": len(texts) - 1,
-                    # Data-file freshness — drives the freshness multiplier
-                    # at search time. `updated_xlsx` tracks when the xlsx
-                    # data on SIAT was last refreshed; `updated_at` would
-                    # track only metadata edits, which we don't use.
-                    "updated_xlsx": item.get("updated_xlsx"),
-                }
+            text, payload = build_indicator_text_and_payload(
+                item, path, catalog_index=len(texts)
             )
+            texts.append(text)
+            payloads.append(payload)
+            sdmx_ids.append(int(item_id))
 
             children = item.get("children", [])
             if children:
@@ -411,10 +435,11 @@ def initialize_rag_vectorstore(
     logger.info("Encoding documents with BGE-M3 (this may take a while)...")
     dense_vecs, sparse_weights = encode_dense_sparse(texts)
 
-    # Build Qdrant points
+    # Build Qdrant points — point.id is the SDMX id so incremental sync
+    # can upsert/delete by id without a separate mapping.
     points = [
         PointStruct(
-            id=i,
+            id=sdmx_id,
             vector={
                 "dense": dense,
                 "sparse": SparseVector(
@@ -424,8 +449,8 @@ def initialize_rag_vectorstore(
             },
             payload={"text": text, **payload},
         )
-        for i, (text, payload, dense, sparse) in enumerate(
-            zip(texts, payloads, dense_vecs, sparse_weights)
+        for sdmx_id, text, payload, dense, sparse in zip(
+            sdmx_ids, texts, payloads, dense_vecs, sparse_weights
         )
     ]
 
