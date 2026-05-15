@@ -137,3 +137,25 @@ def test_inactive_only_classified_if_active_in_old():
     diff = compute_diff(old={1: e}, new={1: e})
     assert diff.inactive == set()
     assert diff.unchanged_count == 1
+
+
+def test_already_inactive_with_metadata_change_is_unchanged():
+    """Inactive items aren't in Qdrant — changes to them shouldn't re-index."""
+    old = {1: _entry(1, is_active=False, name_uz="A")}
+    new = {1: _entry(1, is_active=False, name_uz="B")}
+    diff = compute_diff(old=old, new=new)
+    assert diff.metadata == set()
+    assert diff.data_only == set()
+    assert diff.unchanged_count == 1
+
+
+def test_new_id_added_but_inactive_is_not_added():
+    """Inserting a new but already-inactive indicator → skip indexing."""
+    old: dict = {}
+    new = {1: _entry(1)}
+    # bootstrap path → don't test here; instead use a non-empty old to force
+    # the incremental path.
+    old2 = {0: _entry(0)}
+    new2 = {0: _entry(0), 1: _entry(1, is_active=False)}
+    diff = compute_diff(old=old2, new=new2)
+    assert 1 not in diff.added

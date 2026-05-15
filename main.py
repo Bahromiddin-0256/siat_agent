@@ -235,6 +235,12 @@ async def lifespan(app: FastAPI):
         _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent()
         logger.info("Application startup complete!")
 
+        # Kick off an incremental SDMX sync in the background so the agent
+        # picks up any catalog changes since the last run without blocking
+        # request serving. Crashes are swallowed (logged) so they don't
+        # take down startup.
+        asyncio.create_task(_background_sdmx_sync())
+
         yield
 
     except asyncio.TimeoutError as exc:
@@ -522,6 +528,59 @@ async def websocket_endpoint(websocket: WebSocket):
         # FastAPI 500 (which only shows in server logs, not to the user).
         logger.error("Unhandled WebSocket error: %s", e, exc_info=True)
         manager.disconnect(websocket)
+
+
+# ---------------------------------------------------------------------------
+# SDMX incremental sync — admin endpoints + background hook
+# ---------------------------------------------------------------------------
+
+_latest_sync_report: Dict[str, Any] | None = None
+
+
+async def _background_sdmx_sync() -> None:
+    """Run sync_sdmx in a worker thread so the event loop stays responsive."""
+    global _latest_sync_report
+    try:
+        from core.sdmx_sync import sync_sdmx
+        loop = asyncio.get_event_loop()
+        report = await loop.run_in_executor(
+            None, lambda: sync_sdmx(trigger="startup")
+        )
+        _latest_sync_report = _report_to_dict(report)
+        logger.info("Background SDMX sync finished: %s", _latest_sync_report)
+    except Exception:
+        logger.exception("Background SDMX sync failed")
+
+
+def _report_to_dict(report) -> Dict[str, Any]:
+    return {
+        "skipped": report.skipped,
+        "reason": report.reason,
+        "added": list(report.added),
+        "data_only": list(report.data_only),
+        "metadata": list(report.metadata),
+        "removed": list(report.removed),
+        "inactive": list(report.inactive),
+        "unchanged": report.unchanged,
+        "failed_ids": list(report.failed_ids),
+        "duration_s": round(report.duration_s, 2),
+        "trigger": report.trigger,
+    }
+
+
+@app.post("/admin/sync-sdmx")
+async def admin_sync_sdmx():
+    """Trigger an SDMX sync as a background task. Poll /admin/sync-status."""
+    asyncio.create_task(_background_sdmx_sync())
+    return {"status": "started"}
+
+
+@app.get("/admin/sync-status")
+async def admin_sync_status():
+    """Return the most recent SyncReport (in-memory, resets on restart)."""
+    if _latest_sync_report is None:
+        return {"status": "no_sync_yet"}
+    return _latest_sync_report
 
 
 @app.get("/health")

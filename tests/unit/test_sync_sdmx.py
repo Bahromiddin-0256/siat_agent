@@ -111,16 +111,13 @@ def test_incremental_sync_added_data_only_metadata(tmp_path):
     client = QdrantClient(":memory:")
     _make_collection(client)
 
-    # v1 catalog on disk
+    # Bootstrap with v1 (no main.json on disk yet — triggers bootstrap)
     v1 = [
         _node(1, "A", "Aholi", updated_xlsx="2026-01-01"),
         _node(2, "B", "Bola", updated_xlsx="2026-01-01"),
         _node(3, "C", "Chiqim", updated_xlsx="2026-01-01"),
     ]
     cfg = _config(tmp_path, client)
-    cfg.main_json_path.write_text(json.dumps(v1))
-
-    # Pre-populate Qdrant with v1 state (bootstrap-ish)
     for sid in (1, 2, 3):
         respx.get(SDMX_DATA_URL_TEMPLATE.format(sdmx_id=sid)).mock(
             return_value=httpx.Response(200, json={"v": sid})
@@ -188,7 +185,6 @@ def test_removed_and_inactive_are_deleted(tmp_path):
         _node(3, "C", "C"),
     ]
     cfg = _config(tmp_path, client)
-    cfg.main_json_path.write_text(json.dumps(v1))
 
     respx.get(CATALOG_URL).mock(return_value=httpx.Response(200, json=v1))
     for sid in (1, 2, 3):
@@ -244,7 +240,6 @@ def test_failed_sdmx_fetch_is_tracked_and_retried(tmp_path):
     cfg = _config(tmp_path, client)
 
     v1 = [_node(1, "A", "A")]
-    cfg.main_json_path.write_text(json.dumps(v1))
     respx.get(CATALOG_URL).mock(return_value=httpx.Response(200, json=v1))
     respx.get(SDMX_DATA_URL_TEMPLATE.format(sdmx_id=1)).mock(
         return_value=httpx.Response(200, json={})
