@@ -95,6 +95,28 @@ def _structural_check(question: str, answer: str) -> list[str]:
         issues.append("answer contains an error/placeholder string")
         return issues
 
+    # Deterministic language check. The LLM critic also has a language rule
+    # but has been observed to pass long Uzbek responses to Russian questions
+    # because most of the response IS valid catalog content. Detect upfront.
+    try:
+        from core.lang import detect_language
+        q_lang = detect_language(question)
+        a_lang_body = answer.split("\n---", 1)[0]  # drop the SDMX footer
+        # Strip URLs which add Latin chars and bias against Cyrillic detection.
+        import re as _re
+        a_lang_body = _re.sub(r"https?://\S+", "", a_lang_body)
+        a_lang = detect_language(a_lang_body)
+        if q_lang != "uz" and a_lang != q_lang:
+            issues.append(
+                f"language mismatch — user asked in {q_lang}, response is in "
+                f"{a_lang}. Rewrite the narrative, table headers, and "
+                f"conclusion in {q_lang}; keep indicator names verbatim from "
+                f"tools and SIAT URLs unchanged."
+            )
+    except Exception:
+        # Language check failure must not break the critic; log and move on.
+        logger.debug("language check skipped", exc_info=True)
+
     # Only enforce SDMX ID / SIAT link / period match on questions that actually
     # asked for data. General "what data exists?" answers don't need an ID.
     if _is_data_question(question):
