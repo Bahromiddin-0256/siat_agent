@@ -1,0 +1,139 @@
+{
+  "endpoint": "http://localhost:8001/chat",
+  "summary": {
+    "total": {
+      "passed": 3,
+      "total": 4,
+      "rate": 0.75
+    },
+    "by_category": {
+      "completeness": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      }
+    },
+    "by_language": {
+      "uz": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "complete-births-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "2023 yilda viloyatlar bo'yicha tug'ilganlar soni",
+      "duration_s": 66.81,
+      "response": "2023-yilda viloyatlar bo'yicha tug'ilganlar soni quyidagicha bo'ldi:\n\n| Hudud | Qiymat (kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 961962.0 |\n| Qoraqalpog‘iston Respublikasi | 44021.0 |\n| Nukus shahri | 6957.0 |\n| Andijon viloyati | 89400.0 |\n| Andijon shahri | 16226.0 |\n| Xonobod shahri | 908.0 |\n| Buxoro viloyati | 46617.0 |\n| Buxoro shahri | 7286.0 |\n| Kogon shahri | 1302.0 |\n| Jizzax viloyati | 40875.0 |\n| Jizzax shahri | 4962.0 |\n| Qashqadaryo viloyati | 101852.0 |\n| Qarshi  shahri | 7708.0 |\n| Shahrisabz shahri | 3386.0 |\n| Navoiy viloyati | 26805.0 |\n| Navoiy shahri | 4445.0 |\n| Zarafshon shahri | 2169.0 |\n| G‘ozg‘on shahri | 197.0 |\n| Namangan viloyati | 84496.0 |\n| Namangan shahri | 21738.0 |\n| Samarqand viloyati | 113986.0 |\n| Samarqand shahri | 13677.0 |\n| Kattaqo'rg'on shahar | 2173.0 |\n| Surxondaryo viloyati | 87695.0 |\n| Termiz shahri | 5459.0 |\n| Sirdaryo viloyati | 23229.0 |\n| Guliston shahri | 3502.0 |\n| Shirin shahri | 284.0 |\n| Yangiyer shahri | 1199.0 |\n| Toshkent viloyati | 73171.0 |\n| Nurafshon shahri | 1839.0 |\n| Olmaliq shahri | 3970.0 |\n| Angren shahri | 4769.0 |\n| Bekobod shahri | 3024.0 |\n| Chirchiq shahri | 5302.0 |\n| Ohangaron shahri | 344.0 |\n| Yangiyo‘lshahri | 3546.0 |\n| Farg‘ona  viloyati | 106497.0 |\n| Farg‘ona shahri | 7373.0 |\n| Qo‘qon shahri | 7976.0 |\n| Quvasoy shahri | 2594.0 |\n| Marg‘ilon shahri | 6570.0 |\n| Xorazm viloyati | 48301.0 |\n| Urganch shahri | 4559.0 |\n| Xiva shahri | 2485.0 |\n| Toshkent shahri | 75017.0 |\n\nBu jadvalda 2023-yilda O'zbekiston Respublikasining barcha viloyatlari hamda shaharlarida tug'ilganlar soni keltirilgan.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-population-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Viloyatlar bo'yicha aholi soni 2024",
+      "duration_s": 46.22,
+      "response": "2024-yilda Uzbekistondagi aholi soni viloyatlar bo'yicha quyidagicha bo'ldi:\n\n```\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Andijon viloyati | 3394.4 |\n| Buxoro viloyati | 2044.0 |\n| Jizzax viloyati | 1507.4 |\n| Qashqadaryo viloyati | 3560.6 |\n| Navoiy viloyati | 1075.3 |\n| Namangan viloyati | 3066.1 |\n| Samarqand viloyati | 4208.5 |\n| Surxondaryo viloyati | 2877.1 |\n| Sirdaryo viloyati | 914.0 |\n| Toshkent viloyati | 3051.8 |\n| Farg‘ona  viloyati | 4061.5 |\n| Xorazm viloyati | 1995.6 |\n```\n\nBu ma'lumotlar aholi soni bo'yicha viloyatlararo farqlarni ko'rsatadi. Umumiy aholi soni 36 799,8 ming kishi bo'lib, Farg'ona viloyati (4061,5 ming kishi) hamda Samarqand viloyati (4208,5 ming kishi) eng katta aholi soniga ega.\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-rural-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Qishloq aholisi viloyatlar kesimida 2024",
+      "duration_s": 33.38,
+      "response": "2024-yilda O'zbekiston Respublikasining qishloq aholisi bo'yicha ma'lumotlar quyidagicha:\n\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 18028.7 |\n| Qoraqalpog‘iston Respublikasi | 1024.5 |\n| Andijon viloyati | 1622.0 |\n| Buxoro viloyati | 1290.2 |\n| Jizzax viloyati | 800.1 |\n| Qashqadaryo viloyati | 2036.5 |\n| Navoiy viloyati | 547.0 |\n| Namangan viloyati | 1076.7 |\n| Samarqand viloyati | 2665.6 |\n| Surxondaryo viloyati | 1836.1 |\n| Sirdaryo viloyati | 520.5 |\n| Toshkent viloyati | 1522.6 |\n| Farg‘ona  viloyati | 1751.2 |\n| Xorazm viloyati | 1335.7 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 247: Doimiy aholi soni (qishloq) — https://siat.stat.uz/reports-filed/247/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "not_contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-urban-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Shahar joylarda aholi soni viloyatlar bo'yicha 2024",
+      "duration_s": 14.58,
+      "response": "Shahar joylarda aholi soni (shahar) uchun SDMX ID 248 ni qo'lladik. Bu ko'rsatkich yil boshiga hisoblanadi va o'lchov birligi \"ming kishi\" hisoblanadi. 2024-yil uchun aholi sonini olish uchun kerakli viloyatlarni aniqlang. Masalan, Toshkent shahri, Andijon viloyati, Namangan viloyati yoki boshqalar.\n\nBatafsil ma'lumotlar uchun: https://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": false,
+          "detail": "table has 0 data rows, expected >= 14"
+        }
+      ],
+      "passed": false
+    }
+  ]
+}
