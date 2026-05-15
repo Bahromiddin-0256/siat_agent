@@ -1,0 +1,926 @@
+{
+  "endpoint": "http://localhost:8001/chat",
+  "summary": {
+    "total": {
+      "passed": 32,
+      "total": 35,
+      "rate": 0.914
+    },
+    "by_category": {
+      "age_range": {
+        "passed": 4,
+        "total": 5,
+        "rate": 0.8
+      },
+      "aggregation": {
+        "passed": 3,
+        "total": 3,
+        "rate": 1.0
+      },
+      "completeness": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      },
+      "consistency": {
+        "passed": 4,
+        "total": 4,
+        "rate": 1.0
+      },
+      "edge": {
+        "passed": 4,
+        "total": 4,
+        "rate": 1.0
+      },
+      "language": {
+        "passed": 3,
+        "total": 4,
+        "rate": 0.75
+      },
+      "sanity": {
+        "passed": 5,
+        "total": 5,
+        "rate": 1.0
+      },
+      "subset_selection": {
+        "passed": 6,
+        "total": 6,
+        "rate": 1.0
+      }
+    },
+    "by_language": {
+      "en": {
+        "passed": 2,
+        "total": 2,
+        "rate": 1.0
+      },
+      "ru": {
+        "passed": 1,
+        "total": 2,
+        "rate": 0.5
+      },
+      "uz": {
+        "passed": 29,
+        "total": 31,
+        "rate": 0.935
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "age-children-broad-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "Bolalar soni O'zbekistonda 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda O'zbekiston Respublikasida jami 926,422 nafar bola tug'ilgan. \n\nAgar boshqa ma'lumotlar yoki tafsilotlar kerak bo'lsa, iltimos, ayting.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "age-elderly-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "60 yoshdan oshgan aholi soni 2024",
+      "duration_s": 0.01,
+      "response": "60 yoshdan oshgan aholi soni uchun to'liq bir ko'rsatkich mavjud emas, lekin quyidagi yosh guruhlari bo'yicha ma'lumotlar mavjud:\n\n1. **ID 1191** (65 yosh va undan katta yoshdagi doimiy aholi soni) — aholi soni (kishi) — Yillik — [https://siat.stat.uz/reports-filed/1191/table-data](https://siat.stat.uz/reports-filed/1191/table-data)\n2. **ID 3159** (65 yosh va undan katta yoshdagi doimiy aholi soni (erkaklar)) — aholi soni (kishi) — Yillik — [https://siat.stat.uz/reports-filed/3159/table-data](https://siat.stat.uz/reports-filed/3159/table-data)\n3. **ID 3145** (65 yosh va undan katta yoshdagi doimiy aholi soni (ayollar)) — aholi soni (kishi) — Yillik — [https://siat.stat.uz/reports-filed/3145/table-data](https://siat.stat.uz/reports-filed/3145/table-data)\n4. **ID 3158** (60-64 yoshli doimiy aholi soni (erkaklar)) — aholi soni (kishi) — Yillik — [https://siat.stat.uz/reports-filed/3158/table-data](https://siat.stat.uz/reports-filed/3158/table-data)\n5. **ID 3144** (60-64 yoshli doimiy aholi soni (ayollar)) — aholi soni (kishi) — Yillik — [https://siat.stat.uz/reports-filed/3144/table-data](https://siat.stat.uz/reports-filed/3144/table-data)\n\nAgar 60 yoshdan oshgan aholi sonini olishni xohlasangiz, quyidagi yosh guruhlari bo'yicha ma'lumotlarni olib, ularni qo'shish kerak:\n\n- 60-64 yoshli aholi soni (erkaklar va ayollar)\n- 65 yosh va undan katta aholi soni (erkaklar va ayollar)\n\nShu tarzda to'liq 60 yoshdan oshgan aholi sonini olish mumkin. Qaysi yosh guruhlari bo'yicha ma'lumotlarni olib, ularni qo'shishni xohlaysiz?",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "age-exact-match-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "8-15 yoshli aholi soni 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda 8-15 yoshli doimiy aholi soni bo'yicha hududlar bo'yicha ma'lumotlar quyidagicha:\n\n```\n| Hudud | Qiymat (kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 5269255.0 |\n| Qoraqalpog‘iston Respublikasi | 302465.0 |\n| Nukus shahri | 48327.0 |\n| Taxiatosh sh. | 0.0 |\n| Andijon viloyati | 495376.0 |\n| Andijon shahri | 63719.0 |\n| Xonobod shahri | 5915.0 |\n| Buxoro viloyati | 276453.0 |\n| Buxoro shahri | 36915.0 |\n| Kogon shahri | 8290.0 |\n| Jizzax viloyati | 218638.0 |\n| Jizzax shahri | 23860.0 |\n| Qashqadaryo viloyati | 540553.0 |\n| Qarshi  shahri | 40711.0 |\n| Shahrisabz shahri | 19792.0 |\n| Navoiy viloyati | 148099.0 |\n| Navoiy shahri | 20632.0 |\n| Zarafshon shahri | 13180.0 |\n| G‘ozg‘on shahri | 1360.0 |\n| Namangan viloyati | 433013.0 |\n| Namangan shahri | 104824.0 |\n| Samarqand viloyati | 636082.0 |\n| Samarqand shahri | 71585.0 |\n| Kattaqo'rg'on shahar | 14128.0 |\n| Surxondaryo viloyati | 439702.0 |\n| Termiz shahri | 28800.0 |\n| Sirdaryo viloyati | 130193.0 |\n| Guliston shahri | 12300.0 |\n| Shirin shahri | 2441.0 |\n| Yangiyer shahri | 6355.0 |\n| Toshkent viloyati | 420674.0 |\n| Nurafshon shahri | 6593.0 |\n| Olmaliq shahri | 20852.0 |\n| Angren shahri | 26453.0 |\n| Bekobod shahri | 13323.0 |\n| Chirchiq shahri | 5611.0 |\n| Ohangaron shahri | 19179.0 |\n| Yangiyo‘lshahri | 10441.0 |\n| Farg‘ona  viloyati | 562636.0 |\n| Farg‘ona shahri | 40532.0 |\n| Qo‘qon shahri | 43480.0 |\n| Quvasoy shahri | 13115.0 |\n| Marg‘ilon shahri | 35510.0 |\n| Xorazm viloyati | 290608.0 |\n| Urganch shahri | 20888.0 |\n| Xiva shahri | 13007.0 |\n| Toshkent shahri | 374763.0 |\n```\n\nBu ma'lumotlar O'zbekiston Respublikasining har bir hududida 8-15 yoshli doimiy aholi sonini ko'rsatadi. \n\nAgar siz batafsilroq ma'lumotlarga ehtijoj bo'lsa, yoki boshqa yillardagi o'sishni bilishni xohlasangiz, iltimos, aytib berin.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 600: 8-15 yoshli doimiy aholi soni — https://siat.stat.uz/reports-filed/600/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "age-no-exact-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "0-14 yosh oraligida bolalar soni 2024",
+      "duration_s": 0.01,
+      "response": "Ushbu so'roq bo'yicha Uzbekistondagi 0-14 yosh oralig'ida bolalar soni to'g'risida to'liq ma'lumot topilmadi. Biroq, quyidagi SDMX ID lar orqali mavjud ma'lumotlar bilan tanishishingiz mumkin:\n\n1. **SDMX ID 4227**: Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi.\n2. **SDMX ID 4214**: Bolalarning (0-14 yosh) shifoxona oʻrinlari bilan taʼminlanganligi, 10 000 (0-14 yosh) bolalarga nisbatan.\n3. **SDMX ID 4130**: Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (o‘gil bolalar).\n4. **SDMX ID 4129**: Mehnatga layoqatli yoshdan kichik (0-15) yoshdagi aholining, jami aholidagi ulushi (qiz bolalar).\n\nAgar 0-14 yosh oralig'ida bolalar soni haqida to'liq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shib yuzasiz:\n\n- **SDMX ID 561**: 0-2 yoshli doimiy aholi soni.\n- **SDMX ID 589**: 6-7 yoshli doimiy aholi soni.\n- **SDMX ID 600**: 8-15 yoshli doimiy aholi soni.\n- **SDMX ID 2837**: 7-13 yoshli doimiy aholi soni.\n- **SDMX ID 2838**: 3-5 yoshli doimiy aholi soni.\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni, 2024-yil).\n\nAgar batafsilroq ma'lumot kerak bo'lsa, quyidagi SDMX ID lar orqali alohida yosh oralig'laridagi ma'lumotlarni olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni),\n- **SDMX ID 589** (6-7 yoshli doimiy aholi soni),\n- **SDMX ID 600** (8-15 yoshli doimiy aholi soni),\n- **SDMX ID 2837** (7-13 yoshli doimiy aholi soni),\n- **SDMX ID 2838** (3-5 yoshli doimiy aholi soni).\n\nAgar 2024-yil uchun ma'lumotlar kerak bo'lsa, quyidagi SDMX ID lar orqali olib, ularni qo'shish orqali 0-14 yosh oralig'ida bolalar sonini hisoblash mumkin:\n\n- **SDMX ID 561** (0-2 yoshli doimiy aholi soni, 2024-yil),\n- **SDMX ID 589** (6-7",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": false,
+          "detail": "banned id(s) cited: [4214, 4227] — off-topic exact-range matches (hospital provision)"
+        },
+        {
+          "type": "no_fabricated_total",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "no_fabricated_total",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "age-working-age-uz",
+      "category": "age_range",
+      "lang": "uz",
+      "question": "Mehnatga layoqatli yoshdagi aholi 2024",
+      "duration_s": 0.02,
+      "response": "2024-yilda O‘zbekiston Respublikasida mehnatga layoqatli yoshdagi aholi soni **19 904,5 ming kishi** bo'lgan.\n\nAgar boshqa hududlar yoki yillar uchun ma'lumot kerak bo'lsa, iltimos, ayting.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 521: Mehnatga layoqatli yoshdagi doimiy aholi soni — https://siat.stat.uz/reports-filed/521/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "agg-growth-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Aholi soni o'sish foizi 2020 dan 2024 gacha",
+      "duration_s": 0.01,
+      "response": "2020-yildan 2024-yilgacha O'zbekiston Respublikasidagi doimiy aholi sonining yillik o'sish foizi quyidagicha:\n\n| Yil | Qiymat (ming kishi) | Yillik o'sish (%) |\n|-----|---------------------|-------------------|\n| 2020 | 33905.2             | —                 |\n| 2021 | 34558.9             | +1.93%            |\n| 2022 | 35271.3             | +2.06%            |\n| 2023 | 36024.9             | +2.14%            |\n| 2024 | 36799.8             | +2.15%            |\n\nShunday qilib, aholi soni 2020-yildan 2024-yilgacha o'rtacha yillik 2% dan o'sdi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni  (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains_regex",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "agg-multiyear-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Aholi soni 2020 va 2024 yillarda",
+      "duration_s": 0.01,
+      "response": "2020-yilda O'zbekiston Respublikasida doimiy aholi soni (jami) 33 905,2 ming kishi bo'lib, 2024-yilda esa 36 799,8 ming kishiga o'sdi.\n\n| Yil | Doimiy aholi soni (jami) (ming kishi) |\n|-----|--------------------------------------|\n| 2020 | 33 905,2                             |\n| 2024 | 36 799,8                             |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "agg-share-uz",
+      "category": "aggregation",
+      "lang": "uz",
+      "question": "Toshkent shahrining O'zbekiston aholisidagi ulushi 2024",
+      "duration_s": 0.02,
+      "response": "Toshkent shahrining O'zbekiston aholisidagi ulushi 2024-yilda 5.40% ni tashkil qiladi. Bu aholi soni 3,040.80 ming kishini tashkil qiladi, bu ma'lumot SDMX ID 248: \"Doimiy aholi soni (shahar)\" ko'rsatkichidan olingan Toshkent shahri uchun 2024-yilgi qiymatdir.\n\nBu ulush, Toshkent shahrining O'zbekiston Respublikasining jami doimiy aholi soni (56,313.30 ming kishi) dagi nisbatini ifodalovchi hisoblanadi. Bu nisbat SDMX ID 248 dan olingan Toshkent shahri aholi soni (3,040.80 ming kishi) va jami aholi soni (56,313.30 ming kishi) orasidagi nisbat hisoblanadi.\n\nAgar batafsil ma'lumot kerak bo'lsa yoki boshqa hududlar bilan taqqoslash talab qilinsa, yordam berishim mumkin.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 248: Doimiy aholi soni (shahar) — https://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains_regex",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-births-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "2023 yilda viloyatlar bo'yicha tug'ilganlar soni",
+      "duration_s": 0.01,
+      "response": "2023-yilda viloyatlar bo'yicha tug'ilganlar soni quyidagicha bo'ldi:\n\n| Hudud | Qiymat (kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 961962.0 |\n| Qoraqalpog‘iston Respublikasi | 44021.0 |\n| Nukus shahri | 6957.0 |\n| Andijon viloyati | 89400.0 |\n| Andijon shahri | 16226.0 |\n| Xonobod shahri | 908.0 |\n| Buxoro viloyati | 46617.0 |\n| Buxoro shahri | 7286.0 |\n| Kogon shahri | 1302.0 |\n| Jizzax viloyati | 40875.0 |\n| Jizzax shahri | 4962.0 |\n| Qashqadaryo viloyati | 101852.0 |\n| Qarshi  shahri | 7708.0 |\n| Shahrisabz shahri | 3386.0 |\n| Navoiy viloyati | 26805.0 |\n| Navoiy shahri | 4445.0 |\n| Zarafshon shahri | 2169.0 |\n| G‘ozg‘on shahri | 197.0 |\n| Namangan viloyati | 84496.0 |\n| Namangan shahri | 21738.0 |\n| Samarqand viloyati | 113986.0 |\n| Samarqand shahri | 13677.0 |\n| Kattaqo'rg'on shahar | 2173.0 |\n| Surxondaryo viloyati | 87695.0 |\n| Termiz shahri | 5459.0 |\n| Sirdaryo viloyati | 23229.0 |\n| Guliston shahri | 3502.0 |\n| Shirin shahri | 284.0 |\n| Yangiyer shahri | 1199.0 |\n| Toshkent viloyati | 73171.0 |\n| Nurafshon shahri | 1839.0 |\n| Olmaliq shahri | 3970.0 |\n| Angren shahri | 4769.0 |\n| Bekobod shahri | 3024.0 |\n| Chirchiq shahri | 5302.0 |\n| Ohangaron shahri | 344.0 |\n| Yangiyo‘lshahri | 3546.0 |\n| Farg‘ona  viloyati | 106497.0 |\n| Farg‘ona shahri | 7373.0 |\n| Qo‘qon shahri | 7976.0 |\n| Quvasoy shahri | 2594.0 |\n| Marg‘ilon shahri | 6570.0 |\n| Xorazm viloyati | 48301.0 |\n| Urganch shahri | 4559.0 |\n| Xiva shahri | 2485.0 |\n| Toshkent shahri | 75017.0 |\n\nBu jadvalda 2023-yilda O'zbekiston Respublikasining barcha viloyatlari hamda shaharlarida tug'ilganlar soni keltirilgan.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-population-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Viloyatlar bo'yicha aholi soni 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda Uzbekistondagi aholi soni viloyatlar bo'yicha quyidagicha bo'ldi:\n\n```\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Andijon viloyati | 3394.4 |\n| Buxoro viloyati | 2044.0 |\n| Jizzax viloyati | 1507.4 |\n| Qashqadaryo viloyati | 3560.6 |\n| Navoiy viloyati | 1075.3 |\n| Namangan viloyati | 3066.1 |\n| Samarqand viloyati | 4208.5 |\n| Surxondaryo viloyati | 2877.1 |\n| Sirdaryo viloyati | 914.0 |\n| Toshkent viloyati | 3051.8 |\n| Farg‘ona  viloyati | 4061.5 |\n| Xorazm viloyati | 1995.6 |\n```\n\nBu ma'lumotlar aholi soni bo'yicha viloyatlararo farqlarni ko'rsatadi. Umumiy aholi soni 36 799,8 ming kishi bo'lib, Farg'ona viloyati (4061,5 ming kishi) hamda Samarqand viloyati (4208,5 ming kishi) eng katta aholi soniga ega.\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-rural-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Qishloq aholisi viloyatlar kesimida 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda O'zbekiston Respublikasining qishloq aholisi bo'yicha ma'lumotlar quyidagicha:\n\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 18028.7 |\n| Qoraqalpog‘iston Respublikasi | 1024.5 |\n| Andijon viloyati | 1622.0 |\n| Buxoro viloyati | 1290.2 |\n| Jizzax viloyati | 800.1 |\n| Qashqadaryo viloyati | 2036.5 |\n| Navoiy viloyati | 547.0 |\n| Namangan viloyati | 1076.7 |\n| Samarqand viloyati | 2665.6 |\n| Surxondaryo viloyati | 1836.1 |\n| Sirdaryo viloyati | 520.5 |\n| Toshkent viloyati | 1522.6 |\n| Farg‘ona  viloyati | 1751.2 |\n| Xorazm viloyati | 1335.7 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 247: Doimiy aholi soni (qishloq) — https://siat.stat.uz/reports-filed/247/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "not_contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "complete-urban-by-region-uz",
+      "category": "completeness",
+      "lang": "uz",
+      "question": "Shahar joylarda aholi soni viloyatlar bo'yicha 2024",
+      "duration_s": 0.01,
+      "response": "Shahar joylarda aholi soni (shahar) uchun SDMX ID 248 ni qo'lladik. Bu ko'rsatkich yil boshiga hisoblanadi va o'lchov birligi \"ming kishi\" hisoblanadi. 2024-yil uchun aholi sonini olish uchun kerakli viloyatlarni aniqlang. Masalan, Toshkent shahri, Andijon viloyati, Namangan viloyati yoki boshqalar.\n\nBatafsil ma'lumotlar uchun: https://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "table_min_rows",
+          "passed": false,
+          "detail": "table has 0 data rows, expected >= 14"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "consist-pop-phrasing-1-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "Aholi soni qancha 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda Uzbekistondagi doimiy aholi soni 36 799,8 ming kishi bo'ldi.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-pop-phrasing-2-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "O'zbekistonda nechta odam bor 2024",
+      "duration_s": 0.01,
+      "response": "2024-yil O'zbekistondagi doimiy aholi soni quyidagicha hisoblanadi:\n\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Nukus shahri | 339.2 |\n| Andijon viloyati | 3394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Buxoro viloyati | 2044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Jizzax viloyati | 1507.4 |\n| Jizzax shahri | 195.8 |\n| Qashqadaryo viloyati | 3560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Navoiy viloyati | 1075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Namangan viloyati | 3066.1 |\n| Namangan shahri | 696.5 |\n| Samarqand viloyati | 4208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Surxondaryo viloyati | 2877.1 |\n| Termiz shahri | 201.6 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Toshkent viloyati | 3051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Farg‘ona  viloyati | 4061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Xorazm viloyati | 1995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Toshkent shahri | 3040.8 |\n\nBu ma'lumotlar SDMX ID 246 — \"Doimiy aholi soni (jami)\" ko'rsatkichidan olingan. Ko'rsatkich haqida tafsilotlar: https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-pop-phrasing-3-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "2024 yilda jami aholimiz nechta?",
+      "duration_s": 0.01,
+      "response": "2024-yilda Uzbekistondagi doimiy aholi soni 36 799,8 ming kishi bo'lgan. Aholi soni viloyatlarda ham, shaharlarda ham turlicha tarqoq. Masalan, Toshkent shahridagi aholi soni 3040,8 ming kishi, Andijon viloyatidagi aholi soni 3394,4 ming kishi, Farg'ona viloyatidagi aholi soni 4061,5 ming kishi bo'lgan.\n\nQuyida aholi soni bo'yicha hududlar jadvali keltirilgan:\n\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Nukus shahri | 339.2 |\n| Andijon viloyati | 3394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Buxoro viloyati | 2044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Jizzax viloyati | 1507.4 |\n| Jizzax shahri | 195.8 |\n| Qashqadaryo viloyati | 3560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Navoiy viloyati | 1075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Namangan viloyati | 3066.1 |\n| Namangan shahri | 696.5 |\n| Samarqand viloyati | 4208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Surxondaryo viloyati | 2877.1 |\n| Termiz shahri | 201.6 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Toshkent viloyati | 3051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Farg‘ona  viloyati | 4061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Xorazm viloyati | 1995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Toshkent shahri | 3040.8 |\n\nBu ma'lumotlar 2024-yilgi doimiy aholi soni bo'yicha hududlararo taqsimotni namoyish etadi.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "consist-unemployment-phrasing-uz",
+      "category": "consistency",
+      "lang": "uz",
+      "question": "Ishsiz odamlar foizi 2024",
+      "duration_s": 0.01,
+      "response": "Ishsizlik darajasi haqidagi ko'rsatkichlar uchun quyidagi SDMX ID lar mavjud:\n\n1. **SDMX ID 1875**: Ishsizlik darajasi (yillik) — https://siat.stat.uz/reports-filed/1875/table-data\n2. **SDMX ID 2818**: Ishsizlik darajasi (erkaklar) (yillik) — https://siat.stat.uz/reports-filed/2818/table-data\n3. **SDMX ID 2817**: Ishsizlik darajasi (ayollar) (yillik) — https://siat.stat.uz/reports-filed/2817/table-data\n\nBu ko'rsatkichlardan foydalanib, 2024-yilgi ishsizlik darajasini o'rganishimiz mumkin. Qaysi ko'rsatkichni o'rganishni xohlaysoz? Masalan, umumiy ishsizlik darajasi, yoki jinsiy tashkilot (erkaklar/ayollar) bo'yicha tarkibi.",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-ambiguous-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "narxlar",
+      "duration_s": 0.01,
+      "response": "Narxlar haqida ma'lumotlarni olish uchun bir nechta statistik ko'rsatkichlar mavjud. Quyida bir qancha SDMX ID'lar va ularning tafsilotlari keltirilgan:\n\n1. **Inflatsiya (2017)**  \n   SDMX ID: 2441  \n   Tavsif: Inflatsiya darajasi (yillik).  \n   URL: https://siat.stat.uz/reports-filed/2441/table-data  \n\n2. **Mahsulotlar narxlar indeksi (2022)**  \n   SDMX ID: 2450  \n   Tavsif: Mahsulotlar narxlar indeksi (yillik).  \n   URL: https://siat.stat.uz/reports-filed/2450/table-data  \n\n3. **Xizmatlar narxlar indeksi (2023)**  \n   SDMX ID: 2451  \n   Tavsif: Xizmatlar narxlar indeksi (yillik).  \n   URL: https://siat.stat.uz/reports-filed/2451/table-data  \n\nAgar batafsil ma'lumot kerak bo'lsa, ularning biriga murojaat qiling. Masalan, inflatsiya darajasini yoki mahsulotlar narxlar indeksini o'rganishni xohlaysizmi?",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-future-year-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "2030 yil O'zbekiston aholisi",
+      "duration_s": 0.01,
+      "response": "2030-yilda O'zbekiston Respublikasidagi doimiy aholi soni quyidagicha prognoz qilinadi:\n\n- **Asosiy dastur:** 2022–2026-yillar (4 yil) CAGR (yillik o'sish) — +2.04%.\n- **2026-yilda aholi soni:** 38 236.7 ming kishi.\n- **2030-yilda prognoz qilingan aholi soni:** ≈ 41 451.4 ming kishi.\n\n⚠️ Eslatma: Bu prognoz SIAT tomonidan rasmiy ravishda berilgan emas. Bu yillar davomida o'sish tendentsiyasi asosida ekstrapolyatsiya qilingan. Haqiqiy aholi soni tashqi omillar (migratsiya, siyosat o'zgarishlari, demografik tendentsiyalar) tufayli boshqacha bo'lishi ham mumkin.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "says_unavailable",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-typo-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "aholi soni 2024 yli",
+      "duration_s": 0.01,
+      "response": "2024-yilda O‘zbekiston Respublikasining doimiy aholi soni 36799.8 ming kishi tashkil qiladi.\n\nBu ma'lumot SDMX ID 246 (\"Doimiy aholi soni (jami)\") asosida olingan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "edge-very-old-year-uz",
+      "category": "edge",
+      "lang": "uz",
+      "question": "1985 yil aholi soni",
+      "duration_s": 0.01,
+      "response": "1985-yil aholi soni to'g'risida rasmiy statistik ma'lumotlar UzSSRning 1989-yil aholini hisobga olib chiqish natijalarida keltirilgan. Shu sababli, 1985-yil aholi soni to'g'risida to'liq ma'lumotlar mavjud emas, lekin 1989-yil aholini hisobga olib chiqish natijalariga asoslanib, 1985-yil aholi soni taxminan 22,5 mln kishi bo'lganligi aytiladi.\n\nAgar boshqa yil yoki aholi soni to'g'risida ma'lumot kerak bo'lsa, 2010-yildan keyingi yillar uchun so'roq berishingiz mumkin.\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-english-pop-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Population of Uzbekistan in 2024",
+      "duration_s": 0.01,
+      "response": "The population of Uzbekistan in 2024 was **36,799.8 thousand people**. Below is the population distribution by region for the same year:\n\n| Region | Population (thousand people) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Nukus shahri | 339.2 |\n| Andijon viloyati | 3394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Buxoro viloyati | 2044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Jizzax viloyati | 1507.4 |\n| Jizzax shahri | 195.8 |\n| Qashqadaryo viloyati | 3560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Navoiy viloyati | 1075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Namangan viloyati | 3066.1 |\n| Namangan shahri | 696.5 |\n| Samarqand viloyati | 4208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Surxondaryo viloyati | 2877.1 |\n| Termiz shahri | 201.6 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Toshkent viloyati | 3051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Farg‘ona  viloyati | 4061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Xorazm viloyati | 1995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Toshkent shahri | 3040.8 |\n\n---\n\n**Used indicators:**\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-english-unemployment-en",
+      "category": "language",
+      "lang": "en",
+      "question": "Unemployment rate in Uzbekistan 2024",
+      "duration_s": 0.01,
+      "response": "The unemployment rate for Uzbekistan in 2024 is not yet available. The most recent data from the cited source (SDMX ID 1875) shows the unemployment rate for 2023.\n\n---\n\nUsed indicators:\n- SDMX ID 1875: Unemployment rate — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-russian-gdp-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "ВВП Узбекистана за 2024 год",
+      "duration_s": 0.01,
+      "response": "В 2024 году объем валового внутреннего продукта Республики Узбекистан составил 1 535 431,7 млрд. сум.\n\n---\nИспользованные показатели:\n- SDMX ID 1920: Yalpi ichki mahsulot hajmi — https://siat.stat.uz/reports-filed/1920/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "lang-russian-pop-ru",
+      "category": "language",
+      "lang": "ru",
+      "question": "Численность населения Узбекистана 2024 год",
+      "duration_s": 0.01,
+      "response": "2024-yilda O‘zbekiston Respublikasidagi doimiy aholi soni 36 799,8 ming kishi bo'ldi. Quyida viloyatlar va shaharlar bo'yicha aholi soni jadvalda keltirilgan:\n\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Nukus shahri | 339.2 |\n| Andijon viloyati | 3394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Buxoro viloyati | 2044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Jizzax viloyati | 1507.4 |\n| Jizzax shahri | 195.8 |\n| Qashqadaryo viloyati | 3560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Navoiy viloyati | 1075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Namangan viloyati | 3066.1 |\n| Namangan shahri | 696.5 |\n| Samarqand viloyati | 4208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Surxondaryo viloyati | 2877.1 |\n| Termiz shahri | 201.6 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Toshkent viloyati | 3051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Farg‘ona  viloyati | 4061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Xorazm viloyati | 1995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Toshkent shahri | 3040.8 |\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": false,
+          "detail": "expected ru, got uz"
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false
+    },
+    {
+      "id": "sanity-births-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "2023 yilda nechta bola tug'ilgan?",
+      "duration_s": 0.01,
+      "response": "2023-yilda O'zbekiston Respublikasida jami 961 962 nafar bola tug'ilgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug'ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-gdp-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Yalpi ichki mahsulot 2024 yil",
+      "duration_s": 0.1,
+      "response": "2024-yilda O'zbekiston Respublikasining Yalpi ichki mahsuloti (GDP) quyidagicha bo'ldi:\n\n| Hudud | Qiymat (milliy valyutada, mlrd. so`m) |\n|---|---|\n| O‘zbekiston Respublikasi | 1535431.7 |\n\nBu ma'lumotlar yillik GDP hajmini joriy narxlarda aks ettiradi.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 587: Yalpi ichki mahsulot (yakuniy iste’mol usulida, joriy narxlarda, yillik) — https://siat.stat.uz/reports-filed/587/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-pop-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "O'zbekiston aholisi 2024 yil",
+      "duration_s": 16.18,
+      "response": "2024-yilda O'zbekiston Respublikasining doimiy aholi soni 36 799,8 ming kishi bo'ldi. Bu qiymat doimiy aholi soni uchun statistik hisobot ma'lumotlariga asoslangan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-tashkent-pop-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Toshkent shahri aholisi 2023 yil",
+      "duration_s": 0.01,
+      "response": "2023-yil Toshkent shahridagi doimiy aholi soni **2956,4 ming kishi**ga teng.\n\nAgar yana bir yil yoki boshqa hududlar uchun ma'lumot kerak bo'lsa, yoki o'sish sur'ati haqida savol bormi?\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 248: Doimiy aholi soni (shahar) — https://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-unemployment-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Ishsizlik darajasi 2024",
+      "duration_s": 0.01,
+      "response": "2024-yil ishsizlik darajasi bo'yicha ma'lumotlar quyidagicha:\n\n| Hudud | Qiymat (foizda) |\n|---|---|\n| O‘zbekiston Respublikasi (jami) | 5.5 |\n| Qoraqalpog‘iston Respublikasi | 5.8 |\n| Nukus shahri | 5.5 |\n| Andijon viloyati | 5.4 |\n| Andijon shahri | 5.3 |\n| Xonobod shahri | 5.2 |\n| Buxoro viloyati | 5.4 |\n| Buxoro shahri | 4.9 |\n| Kogon shahri | 5.3 |\n| Jizzax viloyati | 5.8 |\n| Jizzax shahri | 4.9 |\n| Qashqadaryo viloyati | 5.9 |\n| Qarshi  shahri | 5.6 |\n| Shahrisabz shahri | 5.8 |\n| Navoiy viloyati | 4.9 |\n| Navoiy shahri | 3.9 |\n| Zarafshon shahri | 4.2 |\n| G‘ozg‘on shahri | 4.8 |\n| Namangan viloyati | 5.6 |\n| Namangan shahri | 5.4 |\n| Samarqand viloyati | 5.4 |\n| Samarqand shahri | 4.3 |\n| Kattaqo'rg'on shahar | 5.0 |\n| Surxondaryo viloyati | 5.9 |\n| Termiz shahri | 4.9 |\n| Sirdaryo viloyati | 5.9 |\n| Guliston shahri | 5.5 |\n| Shirin shahri | 5.4 |\n| Yangiyer shahri | 5.7 |\n| Toshkent viloyati | 5.7 |\n| Nurafshon shahri | 5.3 |\n| Olmaliq shahri | 5.4 |\n| Angren shahri | 5.5 |\n| Bekobod shahri | 5.7 |\n| Chirchiq shahri | 5.5 |\n| Ohangaron shahri | 5.1 |\n| Yangiyo‘lshahri | 5.8 |\n| Farg‘ona  viloyati | 6.0 |\n| Farg‘ona shahri | 5.5 |\n| Qo‘qon shahri | 5.6 |\n| Quvasoy shahri | 5.8 |\n| Marg‘ilon shahri | 5.8 |\n| Xorazm viloyati | 5.4 |\n| Urganch shahri | 4.8 |\n| Xiva shahri | 5.3 |\n| Toshkent shahri | 4.5 |\n\n2024-yil ishsizlik darajasi O‘zbekiston Respublikasi bo'ylab o'rtacha 5.5 foizni tashkil qilgan. Eng past ishsizlik darajasi Navoiy shahrida (3.9 foiz) hisoblanadi, eng yuqori ishsizlik darajasi Farg‘ona viloyatida (6.0 foiz) hisoblanadi.\n\nAgar batafsilroq ma'lumotlarga ehtiyoj bo'lsa, alohida viloyatlardagi ishsizlik darajasini yoki boshqa yillarni ham o'rganishimiz mumkin.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 1875: Ishsizlik darajasi — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-female-total-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Ayollar soni 2024 yil",
+      "duration_s": 0.01,
+      "response": "2024-yilda O‘zbekiston Respublikasida doimiy aholi soni (ayollar) 18274,8 ming kishi bo'lgan.\n\nAgar batafsil ma'lumot yoki boshqa hududlar uchun ma'lumot kerak bo'lsa, murojaat qiling.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 244: Doimiy aholi soni (ayol) — https://siat.stat.uz/reports-filed/244/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-female-unemployment-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Ayollarda ishsizlik darajasi 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda O'zbekiston Respublikasida ayollarda ishsizlik darajasi 7,4 foizga tushgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 2817: Ishsizlik darajasi (ayollar) — https://siat.stat.uz/reports-filed/2817/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-male-total-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Erkaklar soni 2024 yil",
+      "duration_s": 0.01,
+      "response": "2024-yil uchun aholi (erkaklar) soni haqidagi ma'lumotlarni olib keldim. Quyida 2024-yil uchun aholi (erkaklar) soni jadvali keltirilgan:\n\n```\n| Davr      | Qiymat (ming kishi) |\n|-----------|---------------------|\n| 2024-Q1   | 29 993.5            |\n| 2024-Q2   | 30 120.8            |\n| 2024-Q3   | 30 248.1            |\n| 2024-Q4   | 30 375.4            |\n```\n\nShu jadvaldan 2024-yil uchun aholi (erkaklar) soni o'sishining choraklik asosida qanday o'tayotganini ko'rish mumkin.\n\nAgar boshqa yoki batafsil ma'lumot kerak bo'lsa, iltimos, so'rang.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 3889: Doimiy aholi soni (erkak, choraklik) — https://siat.stat.uz/reports-filed/3889/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-population-neutral-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Aholi soni 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda Uzbekistondagi doimiy aholi soni quyidagi jadvalda keltirilgan. Barcha qiymatlar ming kishida ifodalangan:\n\n```\n| Hudud | Qiymat (ming kishi) |\n|---|---|\n| O‘zbekiston Respublikasi | 36799.8 |\n| Qoraqalpog‘iston Respublikasi | 2002.7 |\n| Nukus shahri | 339.2 |\n| Andijon viloyati | 3394.4 |\n| Andijon shahri | 480.8 |\n| Xonobod shahri | 45.8 |\n| Buxoro viloyati | 2044.0 |\n| Buxoro shahri | 294.5 |\n| Kogon shahri | 64.7 |\n| Jizzax viloyati | 1507.4 |\n| Jizzax shahri | 195.8 |\n| Qashqadaryo viloyati | 3560.6 |\n| Qarshi  shahri | 295.6 |\n| Shahrisabz shahri | 147.2 |\n| Navoiy viloyati | 1075.3 |\n| Navoiy shahri | 161.3 |\n| Zarafshon shahri | 88.4 |\n| G‘ozg‘on shahri | 9.2 |\n| Namangan viloyati | 3066.1 |\n| Namangan shahri | 696.5 |\n| Samarqand viloyati | 4208.5 |\n| Samarqand shahri | 585.2 |\n| Kattaqo'rg'on shahar | 94.9 |\n| Surxondaryo viloyati | 2877.1 |\n| Termiz shahri | 201.6 |\n| Sirdaryo viloyati | 914.0 |\n| Guliston shahri | 99.3 |\n| Shirin shahri | 19.4 |\n| Yangiyer shahri | 48.0 |\n| Toshkent viloyati | 3051.8 |\n| Nurafshon shahri | 56.2 |\n| Olmaliq shahri | 146.6 |\n| Angren shahri | 182.4 |\n| Bekobod shahri | 104.3 |\n| Chirchiq shahri | 172.9 |\n| Ohangaron shahri | 41.4 |\n| Yangiyo‘lshahri | 85.5 |\n| Farg‘ona  viloyati | 4061.5 |\n| Farg‘ona shahri | 321.8 |\n| Qo‘qon shahri | 308.1 |\n| Quvasoy shahri | 101.2 |\n| Marg‘ilon shahri | 253.5 |\n| Xorazm viloyati | 1995.6 |\n| Urganch shahri | 153.1 |\n| Xiva shahri | 98.8 |\n| Toshkent shahri | 3040.8 |\n```\n\nBu ma'lumotlar 2024-yilga oid bo'lib, O'zbekiston Respublikasi bo'yicha jami aholi soni 36 799,8 ming kishini tashkil qiladi.\n\nAgar batafsilroq ma'lumot kerak bo'lsa, yoki boshqa yillar uchun aholi soni haqida so'ro'v berishni xohlaysangiz, iltimos, aytib bering.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — https://siat.stat.uz/reports-filed/246/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-rural-pop-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Qishloq aholisi 2024",
+      "duration_s": 0.01,
+      "response": "2024-yilda O‘zbekiston Respublikasida qishloq aholisi soni 18 028,7 ming kishi bo'lgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 247: Doimiy aholi soni  (qishloq) — https://siat.stat.uz/reports-filed/247/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "subset-urban-pop-uz",
+      "category": "subset_selection",
+      "lang": "uz",
+      "question": "Shahar joylarda aholi 2024",
+      "duration_s": 0.01,
+      "response": "Shahar joylarda aholi soni uchun eng mos ko'rsatkich — **ID 248** (Doimiy aholi soni, shahar), yoki **ID 4118** (Doimiy aholi soni, erkaklar, shahar joylarda). Agar jami aholi soni kerak bo'lsa, ID 248 mos keladi.\n\n2024-yil uchun aholi soni quyidagicha:\n\n| SDMX ID | Ko'rsatkich nomi | Yil | Qiymat (ming kishi) | Birligi | \n|---------|------------------|-----|---------------------|---------|\n| 248     | Doimiy aholi soni (shahar) | 2024 | 14 200 | kishi | \n\nBu ma'lumotlar 2024-yil uchun so'nggi yangilangan ma'lumotlardir. Tafsilot uchun SIAT saytiga murojaat qilishingiz mumkin:  \nhttps://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    }
+  ]
+}
