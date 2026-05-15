@@ -261,6 +261,84 @@ _STATUS_WEIGHT = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Age-range matching — keeps RAG from confidently returning "8-15 yoshli"
+# when the user explicitly asked for a different range like "0-14".
+# ---------------------------------------------------------------------------
+
+_AGE_DASH_RE = re.compile(r"\b(\d{1,2})\s*[-–]\s*(\d{1,2})\s*yosh", re.IGNORECASE)
+_AGE_DASH_INDICATOR_RE = re.compile(
+    r"\b(\d{1,2})\s*[-–]\s*(\d{1,2})\s*yoshli", re.IGNORECASE
+)
+_AGE_OPEN_RE = re.compile(
+    r"\b(\d{1,2})\s*yosh"
+    # "yoshdan oshgan / yuqori / katta" — suffix `dan` attached without a space
+    r"(?:dan\s+(?:oshgan|yuqori|katta|kattaroq)"
+    # "yosh va undan katta / yuqori / kattaroq" — `undan` optional
+    r"|\s+va\s+(?:undan\s+)?(?:katta|yuqori|kattaroq))",
+    re.IGNORECASE,
+)
+
+
+def _query_age_range(q: str) -> tuple[int, int] | None:
+    """Extract an explicit age range from the user's question.
+
+    Returns (low, high) inclusive (high=200 means open-ended), or None.
+    """
+    m = _AGE_DASH_RE.search(q)
+    if m:
+        lo, hi = int(m.group(1)), int(m.group(2))
+        if lo <= hi:
+            return lo, hi
+    m = _AGE_OPEN_RE.search(q)
+    if m:
+        return int(m.group(1)), 200
+    return None
+
+
+def _indicator_age_range(name: str | None) -> tuple[int, int] | None:
+    """Parse the age range from an indicator name. None if not age-specific."""
+    if not name:
+        return None
+    m = _AGE_DASH_INDICATOR_RE.search(name)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    m = _AGE_OPEN_RE.search(name)
+    if m:
+        return int(m.group(1)), 200
+    return None
+
+
+def _age_range_multiplier(
+    q_range: tuple[int, int] | None,
+    i_range: tuple[int, int] | None,
+) -> float:
+    """Score how well an indicator's age range matches the query's.
+
+    - Query has no range: neutral (1.0) — don't bias.
+    - Query has range, indicator has none: 0.85 — total/aggregate indicators
+      stay viable but lose to better-matched age-bracketed ones.
+    - Exact match: 1.5 — strong bonus.
+    - No overlap: 0.3 — heavy penalty (kept above 0 so cross-encoder still has
+      a fallback when no age-bracket indicator covers the range at all).
+    - Partial overlap: scaled 0.5..1.0 by Jaccard.
+    """
+    if q_range is None:
+        return 1.0
+    if i_range is None:
+        return 0.85
+    if q_range == i_range:
+        return 1.5
+    ql, qh = q_range
+    il, ih = i_range
+    if ih < ql or il > qh:
+        return 0.3
+    inter = min(qh, ih) - max(ql, il) + 1
+    union = max(qh, ih) - min(ql, il) + 1
+    jaccard = inter / union if union > 0 else 0.0
+    return max(0.5, min(1.0, jaccard))
+
+
 def _parse_iso_safe(ts: str | None) -> datetime | None:
     """Tolerant ISO-8601 parser. Returns None on any parse error.
 
@@ -610,16 +688,21 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
     #     earlier in main.json (a soft prominence prior)
     # `intent` was already computed above for the retrieval-time boost.
 
+    q_age_range = _query_age_range(question)
+
     def _composite(payload: dict, base: float) -> float:
-        sub = (payload or {}).get("subset", "") or ""
-        upd = (payload or {}).get("updated_xlsx")
-        sts = (payload or {}).get("status")
-        cidx = (payload or {}).get("catalog_index")
+        p = payload or {}
+        sub = p.get("subset", "") or ""
+        upd = p.get("updated_xlsx")
+        sts = p.get("status")
+        cidx = p.get("catalog_index")
+        ind_name = p.get("name") or ""
         return (
             base
             * _subset_penalty(sub, intent)
             * _freshness_multiplier(upd, sts)
             * _catalog_order_multiplier(cidx, _catalog_total)
+            * _age_range_multiplier(q_age_range, _indicator_age_range(ind_name))
         )
 
     if len(results) > k:
