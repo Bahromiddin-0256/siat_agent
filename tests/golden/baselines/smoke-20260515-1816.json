@@ -1,0 +1,161 @@
+{
+  "endpoint": "http://172.16.8.39:8001/chat",
+  "summary": {
+    "total": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "by_category": {
+      "sanity": {
+        "passed": 5,
+        "total": 5,
+        "rate": 1.0
+      }
+    },
+    "by_language": {
+      "uz": {
+        "passed": 5,
+        "total": 5,
+        "rate": 1.0
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "sanity-births-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "2023 yilda nechta bola tug'ilgan?",
+      "duration_s": 7.99,
+      "response": "2023-yilda O‘zbekiston Respublikasida jami 961 962 ta bola tug'ilgan.\n\n---\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 223: Tug‘ilganlar soni (jami) — https://siat.stat.uz/reports-filed/223/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-gdp-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Yalpi ichki mahsulot 2024 yil",
+      "duration_s": 10.41,
+      "response": "So'nggi e'lon qilingan ma'lumotlarga ko'ra, 2024-yilda O'zbekiston Respublikasining yalpi ichki mahsuloti (yakuniy iste'mol usulida, joriy narxlarda) 1 535 431.7 mlrd. so'mni tashkil etadi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 587: Yalpi ichki mahsulot (yakuniy iste’mol usulida, joriy narxlarda, yillik) — [SIAT link](https://siat.stat.uz/reports-filed/587/table-data)",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-pop-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "O'zbekiston aholisi 2024 yil",
+      "duration_s": 9.01,
+      "response": "So'nggi e'lon qilingan ma'lumotlarga ko'ra, 2024-yilda O'zbekiston Respublikasining doimiy aholi soni jami 36 799.8 ming kishini tashkil etadi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 246: Doimiy aholi soni (jami) — [https://siat.stat.uz/reports-filed/246/table-data](https://siat.stat.uz/reports-filed/246/table-data)",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "max_seconds",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-tashkent-pop-2023-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Toshkent shahri aholisi 2023 yil",
+      "duration_s": 14.57,
+      "response": "2023-yil boshida Toshkent shahrining doimiy aholi soni (shahar) 2 956.4 ming kishini tashkil etgan.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 248: Doimiy aholi soni (shahar) — https://siat.stat.uz/reports-filed/248/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "sanity-unemployment-2024-uz",
+      "category": "sanity",
+      "lang": "uz",
+      "question": "Ishsizlik darajasi 2024",
+      "duration_s": 10.27,
+      "response": "2024-yilda O‘zbekiston Respublikasida ishsizlik darajasi 5.5% ni tashkil etadi.\n\n---\n\nFoydalanilgan ko'rsatkichlar:\n- SDMX ID 1875: Ishsizlik darajasi — https://siat.stat.uz/reports-filed/1875/table-data",
+      "error": null,
+      "assertions": [
+        {
+          "type": "language",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_in",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "type": "indicator_not_in",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true
+    }
+  ]
+}
