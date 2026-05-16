@@ -39,7 +39,7 @@ WORKDIR /app
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/chroma_db /app/jsons && \
+    mkdir -p /app/chroma_db /app/jsons /app/jsons/sdmxs && \
     chown -R appuser:appuser /app
 
 # Copy the uv-managed venv from builder stage
@@ -54,7 +54,6 @@ COPY --chown=appuser:appuser pyproject.toml ./
 
 # Copy JSON data files
 COPY --chown=appuser:appuser jsons/main.json ./jsons/main.json
-COPY --chown=appuser:appuser jsons/sdmxs/ ./jsons/sdmxs/
 
 # Set environment variables
 ENV PATH=/app/.venv/bin:$PATH \
