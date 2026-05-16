@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
+from core.session_store import SessionStore, build_session_store
 from core.settings import settings
 from core.logger import setup_logger
 from tools import (
@@ -44,6 +45,7 @@ class _AppState:
     agent = None
     system_prompt: Optional[str] = None
     tools_map: Dict[str, Any] = {}
+    session_store: Optional[SessionStore] = None
 
 
 _state = _AppState()
@@ -56,12 +58,18 @@ _state = _AppState()
 class ChatMessage(BaseModel):
     """Chat message model."""
     message: str
+    # Optional client-provided session id for multi-turn continuity. When
+    # omitted, the server mints a fresh one and returns it on the response.
+    session_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     """Chat response model."""
     response: str
     status: str = "success"
+    # Echoes the session id used for this request — clients should send this
+    # value back on subsequent /chat calls to continue the same conversation.
+    session_id: Optional[str] = None
 
 
 class MessageType(str, Enum):
@@ -231,8 +239,15 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Metadata RAG vector store initialized successfully!")
 
+        logger.info("Building session store...")
+        _state.session_store = await build_session_store(
+            settings.redis_url, settings.session_ttl_seconds
+        )
+
         logger.info("Creating SDMX agent...")
-        _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent()
+        _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent(
+            checkpointer=_state.session_store.checkpointer,
+        )
         logger.info("Application startup complete!")
 
         # Kick off an incremental SDMX sync in the background so the agent
@@ -251,6 +266,11 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         logger.info("Shutting down application...")
+        if _state.session_store is not None:
+            try:
+                await _state.session_store.aclose()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Error closing session store: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -413,17 +433,19 @@ async def chat(message: ChatMessage):
             result = search_sdmx_semantic.invoke({"question": message.message})
             return ChatResponse(response=result)
 
-        # Each /chat request is independent — give it its own thread id so
-        # concurrent users never share checkpointer state.
+        # Honour client-supplied session_id for multi-turn continuity; mint
+        # one when absent so a brand-new client still gets an isolated thread
+        # and can persist the id for the next call.
+        session_id = message.session_id or f"chat-{uuid.uuid4()}"
         response = await run_agent_async(
             _state.agent,
             message.message,
             _state.system_prompt,
             _state.tools_map,
-            thread_id=f"chat-{uuid.uuid4()}",
+            thread_id=session_id,
         )
-        logger.info("Chat response generated successfully")
-        return ChatResponse(response=response)
+        logger.info("Chat response generated successfully (session=%s)", session_id)
+        return ChatResponse(response=response, session_id=session_id)
 
     except Exception as e:
         logger.error("Error processing chat message: %s", e, exc_info=True)
@@ -439,10 +461,20 @@ async def websocket_endpoint(websocket: WebSocket):
     Enforces per-connection rate limiting and message size limits.
     """
     await manager.connect(websocket)
-    # Stable per-connection thread id — keeps follow-ups in the same conversation
-    # but isolates this socket from every other client.
-    ws_thread_id = f"ws-{uuid.uuid4()}"
-    logger.info("WebSocket client connected (thread_id=%s)", ws_thread_id)
+    # Resume an existing conversation when the client supplies ?session_id=,
+    # otherwise mint a fresh id. Echo it back as the first frame so the client
+    # can persist it for reconnects.
+    client_session = websocket.query_params.get("session_id")
+    ws_thread_id = client_session or f"ws-{uuid.uuid4()}"
+    logger.info(
+        "WebSocket client connected (thread_id=%s, resumed=%s)",
+        ws_thread_id,
+        bool(client_session),
+    )
+    await manager.send_message(
+        json.dumps({"type": "session", "session_id": ws_thread_id}),
+        websocket,
+    )
 
     try:
         while True:

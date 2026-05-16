@@ -25,6 +25,14 @@ services:
       TRANSFORMERS_CACHE: "/home/appuser/.cache/huggingface"
       NVIDIA_VISIBLE_DEVICES: "all"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      # Persistent session/conversation state — survives container restarts
+      # and is shareable across replicas. Override in .env to disable (empty
+      # string) or point at an external Redis.
+      REDIS_URL: "redis://redis:6379/0"
+
+    depends_on:
+      redis:
+        condition: service_healthy
 
     ports:
       - "8001:8001"
@@ -62,5 +70,26 @@ services:
         max-size: "10m"
         max-file: "5"
 
+  redis:
+    image: redis:7-alpine
+    container_name: siat-redis
+    restart: unless-stopped
+    # AOF persistence — sessions survive a restart at the cost of a small
+    # write amplification. Drop --appendonly for ephemeral state.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   hf-cache:
+  redis-data:

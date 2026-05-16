@@ -201,11 +201,16 @@ def execute_tool_from_xml(content: str, tools_map: dict) -> str | None:
 
 
 def create_sdmx_agent(
+    checkpointer: Any = None,
 ) -> tuple[Any, str, dict]:
     """
     Create an SDMX agent using LangGraph's prebuilt ReAct agent with Ollama.
 
     Args:
+        checkpointer: LangGraph checkpointer for conversation state. If None,
+            a fresh in-process ``MemorySaver`` is created — state is lost on
+            restart and not shared across processes. Production callers should
+            inject a persistent checkpointer (see ``core.session_store``).
 
     Returns:
         A tuple of (compiled LangGraph agent, system prompt, tools_map)
@@ -517,11 +522,12 @@ Rules:
     supports_tools = hasattr(base_llm, 'bind_tools')
     logger.info(f"Model supports bind_tools: {supports_tools}")
 
-    # In-memory checkpointer keeps conversation state per `thread_id` so a WS
-    # session can do follow-up questions ("...endi Samarqand-chi?") without the
-    # client re-sending earlier turns. Each WS connection gets its own UUID-
-    # based thread id (see main.py), so cross-session leakage is impossible.
-    checkpointer = MemorySaver()
+    # Checkpointer keeps conversation state per `thread_id` so follow-up turns
+    # ("...endi Samarqand-chi?") don't need the client to re-send earlier turns.
+    # Production callers inject a persistent (Redis) checkpointer; tests and
+    # local dev get an in-process MemorySaver by default.
+    if checkpointer is None:
+        checkpointer = MemorySaver()
     agent = create_agent(base_llm, tools, checkpointer=checkpointer)
     logger.info(f"SDMX agent created successfully with {len(tools)} tools")
 

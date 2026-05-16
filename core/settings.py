@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     # Vector store path (Qdrant local, both collections share one directory)
     qdrant_persist_dir: Path = BASE_DIR / "vector" / "qdrant"
 
+    # Session storage. When REDIS_URL is set, conversation state is persisted
+    # to Redis via langgraph-checkpoint-redis (survives restarts, shareable
+    # across replicas). When empty, falls back to in-process MemorySaver —
+    # convenient for local dev and tests, but state is lost on restart and
+    # cannot be shared between processes.
+    redis_url: str = ""
+    session_ttl_seconds: int = 7 * 24 * 60 * 60  # 7 days
+
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
