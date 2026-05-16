@@ -92,17 +92,26 @@ cmd_deploy() {
   # the container expects on a bind mount (see compose), so they still
   # need to land on the VM.
   gc compute scp --zone "$ZONE" --recurse \
-    docker-compose.yml .env jsons \
+    docker-compose.yml docker-compose.gpu.yml .env jsons \
     "${VM_NAME}:~/siat_agent/"
 
   # Pull the GHCR image, retag to the name the compose file references,
   # then bring the stack up. No --build: the image is built by CI.
+  # Layer the GPU override only when an NVIDIA GPU is actually present —
+  # otherwise the deploy fails with "could not select device driver nvidia".
   gc compute ssh "$VM_NAME" --zone "$ZONE" --command "
     set -e
     cd ~/siat_agent
     docker pull '${GHCR_IMAGE}:${GHCR_TAG}'
     docker tag  '${GHCR_IMAGE}:${GHCR_TAG}' '${COMPOSE_IMAGE}'
-    docker compose up -d
+    compose_args='-f docker-compose.yml'
+    if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+      compose_args=\"\$compose_args -f docker-compose.gpu.yml\"
+      echo 'GPU detected — using docker-compose.gpu.yml override.'
+    else
+      echo 'No GPU — running CPU-only.'
+    fi
+    docker compose \$compose_args up -d
     docker image prune -f
   "
 
