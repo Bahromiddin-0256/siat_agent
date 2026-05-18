@@ -227,7 +227,8 @@ def create_sdmx_agent(
     tools = [
         # Search and discovery tools
         search_sdmx_semantic,  # RAG-based semantic search (primary)
-        disambiguate_indicator,  # Flag ambiguous top hits before fetching values
+        # disambiguate_indicator,  # NOT WIRED YET — needs prompt guidance first; the LLM
+        #                            calls it speculatively and blows the recursion budget.
         search_sdmx_with_score,  # RAG search with relevance scores
         search_sdmx_metadata,  # Metadata search (methodologies, classifiers, legal refs)
         get_sdmx_id,  # Keyword-based search (fallback)
@@ -239,7 +240,7 @@ def create_sdmx_agent(
         random_indicators,  # Sample N random indicators when user asks for "random statistika"
 
         # Data extraction tools
-        check_data_freshness,  # Latest period available — call before "current year" questions
+        # check_data_freshness,  # NOT WIRED YET — needs prompt guidance first; see note above.
         inspect_sdmx_data,  # Inspect dataset structure (rows + periods) before querying
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata
