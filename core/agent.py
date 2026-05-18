@@ -84,6 +84,7 @@ from tools import (
     count_reports_by_id,
     find_indicators_by_person,
     random_indicators,
+    disambiguate_indicator,
 )
 
 
@@ -225,6 +226,7 @@ def create_sdmx_agent(
     tools = [
         # Search and discovery tools
         search_sdmx_semantic,  # RAG-based semantic search (primary)
+        disambiguate_indicator,  # Flag ambiguous top hits before fetching values
         search_sdmx_with_score,  # RAG search with relevance scores
         search_sdmx_metadata,  # Metadata search (methodologies, classifiers, legal refs)
         get_sdmx_id,  # Keyword-based search (fallback)
