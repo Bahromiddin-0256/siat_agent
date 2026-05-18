@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # Vector store path (Qdrant local, both collections share one directory)
     qdrant_persist_dir: Path = BASE_DIR / "vector" / "qdrant"
 
+    # Redis-backed conversation sessions. `redis_url` is required at startup
+    # (the checkpointer fails fast if unreachable); `redis_session_ttl_seconds`
+    # sets the sliding-window expiry the LangGraph saver refreshes on every
+    # read/write — see core/session.py.
+    redis_url: str = "redis://localhost:6379/0"
+    redis_session_ttl_seconds: int = 604_800  # 7 days
+
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
@@ -89,6 +96,14 @@ class Settings(BaseSettings):
 
         if self.llm_provider == "openai" and not self.openai_api_key.strip():
             errors.append("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
+
+        if not self.redis_url.strip():
+            errors.append("REDIS_URL is required for chat session persistence")
+
+        if self.redis_session_ttl_seconds <= 0:
+            errors.append(
+                f"REDIS_SESSION_TTL_SECONDS must be > 0 (got {self.redis_session_ttl_seconds})"
+            )
 
         return errors
 

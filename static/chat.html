@@ -566,6 +566,31 @@
         let currentBotMessage = null;
         let currentToolStep = null;
 
+        // chat_id keys the conversation in the server's Redis checkpointer
+        // so reloads, reconnects, and server restarts all resume the same
+        // chat. We persist it in localStorage; the server validates it as a
+        // UUID and rejects anything else with a 400 (HTTP) or 1008 (WS).
+        const CHAT_ID_KEY = 'siat_chat_id';
+        function loadOrCreateChatId() {
+            try {
+                let id = localStorage.getItem(CHAT_ID_KEY);
+                if (!id && typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    id = crypto.randomUUID();
+                    localStorage.setItem(CHAT_ID_KEY, id);
+                }
+                return id || null;
+            } catch (e) {
+                // localStorage can throw in private-browsing mode — fall back
+                // to a per-tab id so the chat still works, just without
+                // cross-reload persistence.
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    return crypto.randomUUID();
+                }
+                return null;
+            }
+        }
+        let chatId = loadOrCreateChatId();
+
         function createBotMessage() {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message bot';
@@ -772,7 +797,9 @@
             if (!useWebSocket) return;
 
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            const wsUrl = chatId
+                ? `${protocol}//${window.location.host}/ws?chat_id=${encodeURIComponent(chatId)}`
+                : `${protocol}//${window.location.host}/ws`;
 
             ws = new WebSocket(wsUrl);
 
@@ -784,6 +811,17 @@
             ws.onmessage = function(event) {
                 try {
                     const message = JSON.parse(event.data);
+
+                    if (message.type === 'session') {
+                        // Server-resolved chat id. If we didn't have one yet,
+                        // persist whatever the server chose so a reload reuses
+                        // the same Redis-backed conversation.
+                        if (message.chat_id) {
+                            chatId = message.chat_id;
+                            try { localStorage.setItem(CHAT_ID_KEY, chatId); } catch (_) {}
+                        }
+                        return;
+                    }
 
                     if (message.type === 'tool_start') {
                         // Create tool step if it's the first one
@@ -953,10 +991,16 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ message: message }),
+                        body: JSON.stringify({ message: message, chat_id: chatId }),
                     });
 
                     const data = await response.json();
+                    // Echo back the server-resolved chat_id so a first-time
+                    // request without one gets persisted for follow-ups.
+                    if (data && data.chat_id) {
+                        chatId = data.chat_id;
+                        try { localStorage.setItem(CHAT_ID_KEY, chatId); } catch (_) {}
+                    }
                     hideTyping();
                     addMessage(data.response, false);
                 }

@@ -46,6 +46,7 @@ def _extract_response_metadata(final_text: str, tools_used: list[str]) -> dict:
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain.agents import create_agent
 from langgraph.graph.message import add_messages
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 
 from .llm import base_llm, _sanitize_tool_call_args
@@ -201,11 +202,18 @@ def execute_tool_from_xml(content: str, tools_map: dict) -> str | None:
 
 
 def create_sdmx_agent(
+    checkpointer: BaseCheckpointSaver | None = None,
 ) -> tuple[Any, str, dict]:
     """
     Create an SDMX agent using LangGraph's prebuilt ReAct agent with Ollama.
 
     Args:
+        checkpointer: Optional `BaseCheckpointSaver`. When set (typical in
+            production), this is the Redis-backed `AsyncRedisSaver` opened by
+            `core.session.init_checkpointer()` — conversations key off the
+            request's `chat_id` and persist across restarts. When `None`
+            (tests, scripts), we fall back to `MemorySaver` so the agent
+            still works without a Redis dependency.
 
     Returns:
         A tuple of (compiled LangGraph agent, system prompt, tools_map)
@@ -517,11 +525,17 @@ Rules:
     supports_tools = hasattr(base_llm, 'bind_tools')
     logger.info(f"Model supports bind_tools: {supports_tools}")
 
-    # In-memory checkpointer keeps conversation state per `thread_id` so a WS
-    # session can do follow-up questions ("...endi Samarqand-chi?") without the
-    # client re-sending earlier turns. Each WS connection gets its own UUID-
-    # based thread id (see main.py), so cross-session leakage is impossible.
-    checkpointer = MemorySaver()
+    # The checkpointer holds conversation state keyed by `thread_id` so a
+    # session can do follow-up questions ("...endi Samarqand-chi?") without
+    # the client re-sending earlier turns. In production we inject the
+    # Redis-backed `AsyncRedisSaver` (see core/session.py) so chats survive
+    # restarts and reconnects; tests/scripts that don't pass one fall back
+    # to in-process `MemorySaver`.
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+        logger.info("No checkpointer supplied — using in-process MemorySaver")
+    else:
+        logger.info("Using injected checkpointer: %s", type(checkpointer).__name__)
     agent = create_agent(base_llm, tools, checkpointer=checkpointer)
     logger.info(f"SDMX agent created successfully with {len(tools)} tools")
 
@@ -538,6 +552,10 @@ def _has_thread_history(agent, config) -> bool:
     Used to decide whether the answer cache is safe to consult — follow-up
     turns ("endi Samarqand-chi?") depend on conversation state, so we only
     cache first-turn answers.
+
+    Only safe with sync checkpointers (MemorySaver). The Redis-backed
+    `AsyncRedisSaver` raises if you call sync methods from the running event
+    loop — async callers must use `_ahas_thread_history` instead.
     """
     try:
         snapshot = agent.get_state(config)
@@ -548,15 +566,44 @@ def _has_thread_history(agent, config) -> bool:
         return False
 
 
+async def _ahas_thread_history(agent, config) -> bool:
+    """Async sibling of `_has_thread_history` — safe with `AsyncRedisSaver`.
+
+    The async checkpointer's sync wrappers deadlock when called from the
+    same event loop they were constructed on, so anything running inside
+    the FastAPI loop has to go through `aget_state`.
+    """
+    try:
+        snapshot = await agent.aget_state(config)
+        existing = snapshot.values.get("messages") if snapshot and snapshot.values else None
+        return bool(existing)
+    except Exception as e:
+        logger.debug(f"Could not read async checkpointer state: {e}")
+        return False
+
+
 def _build_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
     """Construct input messages, honouring the checkpointer's existing state.
 
     First turn in a thread → [SystemMessage (+ few-shots + lang lock), HumanMessage (+ plan hint)]
     Follow-up turns       → [HumanMessage] only (system + history already in state)
+
+    Sync — only safe with sync checkpointers. Async callers should use
+    `_abuild_input_messages` so they don't deadlock on `AsyncRedisSaver`.
     """
+    has_history = _has_thread_history(agent, config)
+    return _assemble_input_messages(has_history, system_prompt, question)
+
+
+async def _abuild_input_messages(agent, config, system_prompt: str | None, question: str) -> list[BaseMessage]:
+    """Async sibling of `_build_input_messages`. Uses `aget_state`."""
+    has_history = await _ahas_thread_history(agent, config)
+    return _assemble_input_messages(has_history, system_prompt, question)
+
+
+def _assemble_input_messages(has_history: bool, system_prompt: str | None, question: str) -> list[BaseMessage]:
     from core.lang import detect_language, lock_directive
 
-    has_history = _has_thread_history(agent, config)
     q_lang = detect_language(question)
     # The lock only fires for non-Uzbek queries. Uzbek is the catalog's
     # native language and the existing system-prompt rule 0 already handles
@@ -643,14 +690,14 @@ async def run_agent_async(
 
     # Answer cache short-circuit: only for first-turn questions (follow-ups
     # depend on conversation context and can't be safely served from cache).
-    is_first_turn = not _has_thread_history(agent, config)
+    is_first_turn = not await _ahas_thread_history(agent, config)
     if is_first_turn:
         cached = answer_cache.get(question)
         if cached is not None:
             telemetry.close()
             return cached
 
-    messages = _build_input_messages(agent, config, system_prompt, question)
+    messages = await _abuild_input_messages(agent, config, system_prompt, question)
 
     try:
         result = await agent.ainvoke(
@@ -956,7 +1003,7 @@ async def run_agent_async_stream(
     try:
         # Answer cache short-circuit (first-turn only). On hit, emit one
         # `response` event with the cached text and skip the agent run entirely.
-        is_first_turn = not _has_thread_history(agent, config)
+        is_first_turn = not await _ahas_thread_history(agent, config)
         if is_first_turn:
             cached = answer_cache.get(question)
             if cached is not None:
@@ -970,7 +1017,7 @@ async def run_agent_async_stream(
                 telemetry.close()
                 return
 
-        messages = _build_input_messages(agent, config, system_prompt, question)
+        messages = await _abuild_input_messages(agent, config, system_prompt, question)
 
         tool_call_count = 0
         tool_result_count = 0
@@ -1060,11 +1107,12 @@ async def run_agent_async_stream(
 
         # Final aggregated text. If the model streamed nothing (e.g., the
         # provider doesn't emit chunks), fall back to reading state from
-        # the checkpointer.
+        # the checkpointer. Must use the async accessor — AsyncRedisSaver's
+        # sync wrappers deadlock on the same event loop.
         final_text = "".join(text_buffer).strip()
         if not final_text:
             try:
-                snapshot = agent.get_state(config)
+                snapshot = await agent.aget_state(config)
                 state_messages = (snapshot.values or {}).get("messages") or []
                 final_text = extract_final_response(state_messages, tools_map)
             except Exception as e:

@@ -7,7 +7,6 @@ with both REST API and WebSocket support for real-time streaming.
 
 import asyncio
 import time
-import uuid
 from collections import deque
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -24,6 +23,13 @@ from pydantic import BaseModel
 from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
 from core.settings import settings
 from core.logger import setup_logger
+from core.session import (
+    init_checkpointer,
+    close_checkpointer,
+    validate_chat_id,
+    new_chat_id,
+    ping as redis_ping,
+)
 from tools import (
     initialize_sdmx_data,
     initialize_rag_vectorstore,
@@ -54,14 +60,21 @@ _state = _AppState()
 # ---------------------------------------------------------------------------
 
 class ChatMessage(BaseModel):
-    """Chat message model."""
+    """Chat message model.
+
+    `chat_id` is the client-owned UUID that keys the conversation in Redis.
+    Optional on the wire — when absent, the server mints one and returns it
+    in the response so the client can stash it (typically in localStorage).
+    """
     message: str
+    chat_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     """Chat response model."""
     response: str
     status: str = "success"
+    chat_id: str
 
 
 class MessageType(str, Enum):
@@ -231,8 +244,13 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Metadata RAG vector store initialized successfully!")
 
+        logger.info("Opening Redis checkpointer for chat sessions...")
+        checkpointer = await init_checkpointer()
+
         logger.info("Creating SDMX agent...")
-        _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent()
+        _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent(
+            checkpointer=checkpointer,
+        )
         logger.info("Application startup complete!")
 
         # Kick off an incremental SDMX sync in the background so the agent
@@ -251,6 +269,7 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         logger.info("Shutting down application...")
+        await close_checkpointer()
 
 
 # ---------------------------------------------------------------------------
@@ -404,26 +423,38 @@ async def chat(message: ChatMessage):
         logger.warning("Empty message received")
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    logger.info("Received chat message: %s...", message.message[:100])
+    # Resolve the chat session id. Client-supplied ids must be valid UUIDs
+    # (a Redis key segment); missing ids mean a fresh chat, and the server
+    # mints one for the client to remember.
+    if message.chat_id:
+        try:
+            chat_id = validate_chat_id(message.chat_id)
+        except ValueError as exc:
+            logger.warning("Rejecting malformed chat_id: %s", exc)
+            raise HTTPException(status_code=400, detail="chat_id must be a UUID")
+    else:
+        chat_id = new_chat_id()
+
+    logger.info("Received chat message (chat_id=%s): %s...", chat_id, message.message[:100])
 
     try:
         if _state.agent is None:
             logger.warning("Agent not available, using fallback semantic search")
             from tools import search_sdmx_semantic
             result = search_sdmx_semantic.invoke({"question": message.message})
-            return ChatResponse(response=result)
+            return ChatResponse(response=result, chat_id=chat_id)
 
-        # Each /chat request is independent — give it its own thread id so
-        # concurrent users never share checkpointer state.
+        # `chat_id` doubles as the LangGraph thread_id — same id across HTTP
+        # requests means a persisted, resumable conversation.
         response = await run_agent_async(
             _state.agent,
             message.message,
             _state.system_prompt,
             _state.tools_map,
-            thread_id=f"chat-{uuid.uuid4()}",
+            thread_id=chat_id,
         )
-        logger.info("Chat response generated successfully")
-        return ChatResponse(response=response)
+        logger.info("Chat response generated successfully (chat_id=%s)", chat_id)
+        return ChatResponse(response=response, chat_id=chat_id)
 
     except Exception as e:
         logger.error("Error processing chat message: %s", e, exc_info=True)
@@ -438,11 +469,28 @@ async def websocket_endpoint(websocket: WebSocket):
     Connects to the agent and streams responses token by token.
     Enforces per-connection rate limiting and message size limits.
     """
+    # Resolve the chat session id before we accept the socket — a malformed
+    # `chat_id` query param is closed with policy-violation (1008) so the
+    # client knows the URL was rejected.
+    raw_chat_id = websocket.query_params.get("chat_id")
+    try:
+        chat_id = validate_chat_id(raw_chat_id) if raw_chat_id else new_chat_id()
+    except ValueError as exc:
+        logger.warning("Rejecting WebSocket — malformed chat_id: %s", exc)
+        await websocket.close(code=1008, reason="invalid chat_id")
+        return
+
     await manager.connect(websocket)
-    # Stable per-connection thread id — keeps follow-ups in the same conversation
-    # but isolates this socket from every other client.
-    ws_thread_id = f"ws-{uuid.uuid4()}"
-    logger.info("WebSocket client connected (thread_id=%s)", ws_thread_id)
+    # First frame echoes the resolved id so the client can persist it.
+    await manager.send_message(
+        json.dumps({
+            "type": "session",
+            "chat_id": chat_id,
+            "timestamp": datetime.now().isoformat(),
+        }),
+        websocket,
+    )
+    logger.info("WebSocket client connected (chat_id=%s)", chat_id)
 
     try:
         while True:
@@ -481,7 +529,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         data,
                         _state.system_prompt,
                         _state.tools_map,
-                        thread_id=ws_thread_id,
+                        thread_id=chat_id,
                     ):
                         try:
                             json_message = json.dumps(
@@ -595,6 +643,7 @@ async def health_check():
         "vector_store": get_vectorstore() is not None,
         "metadata_store": get_metadata_vectorstore() is not None,
         "json_data": bool(sdmx_tool._json_data),
+        "redis": await redis_ping(),
     }
 
     # Only probe the LLM provider that's actually configured.
