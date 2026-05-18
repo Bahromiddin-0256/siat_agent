@@ -55,7 +55,7 @@ from .telemetry import RunTelemetry
 from . import answer_cache
 from .critic import critique, build_retry_message
 from .few_shot import retrieve_examples, format_for_prompt
-from tools.chart_utils import pop_charts
+from tools.chart_utils import pop_charts, pop_tables
 
 logger = setup_logger(__name__)
 from tools import (
@@ -306,6 +306,25 @@ indicators by selecting the right tool, executing it, and explaining the result.
     You MAY translate the column header into the user's response
     language, and may add a short intro sentence before the table.
     Compute any "jami / total" only by re-summing all rows shown.
+    Note: most data tools now emit structured tables instead (see 0c) —
+    this rule only applies when you actually see a `MARKDOWN TABLE` block.
+
+0c. **STRUCTURED TABLE RULE — when a tool result ends with the marker
+    `[STRUKTURALI JADVAL EMITTED]`, the frontend renders the full table
+    from typed data. You MUST NOT reproduce that table in your prose. The
+    UI shows every row already; duplicating it as a markdown table causes
+    layout breakage (numbers like "29 993.5" contain spaces that confuse
+    the renderer, and viloyat names with apostrophes drop columns).
+    Instead, write:
+      1. A 1–2 sentence narrative summary in the user's language
+         ("O'zbekistonda 2013–2023 yillarda aholi soni barqaror o'sib bordi").
+      2. Up to 3 key highlights — e.g. earliest/latest values, total/max/min
+         (if the user's question implies them). Use bullet points, not a
+         table.
+      3. The reference list block (rule 5) — required as always.
+    Do NOT emit a pipe-delimited table, ASCII alignment, or any other
+    row-by-row dump of the same data. The marker is for your eyes only —
+    do not echo it into the response.
 1. **Always respond in natural language after a tool runs.** Never end on a raw tool call —
    summarize and format the result for the user.
 2. **State which indicator you used.** Include the exact name and SDMX ID in the response.
@@ -1058,6 +1077,7 @@ async def run_agent_async_stream(
                 logger.info(f"Tool call #{tool_call_count}: {tool_name}")
                 yield {
                     "type": "tool_start",
+                    "tool_call_id": event.get("run_id"),
                     "tool_name": tool_name,
                     "tool_args": tool_args,
                     "timestamp": datetime.now().isoformat(),
@@ -1087,9 +1107,11 @@ async def run_agent_async_stream(
                     )
                     tool_result = tool_result[:max_length] + "\n... (truncated)"
 
+                tool_call_id = event.get("run_id")
                 logger.info(f"Tool result #{tool_result_count}: {len(tool_result)} chars")
                 yield {
                     "type": "tool_result",
+                    "tool_call_id": tool_call_id,
                     "tool_result": tool_result,
                     "timestamp": datetime.now().isoformat(),
                 }
@@ -1097,7 +1119,16 @@ async def run_agent_async_stream(
                 for chart in pop_charts():
                     yield {
                         "type": "chart",
+                        "tool_call_id": tool_call_id,
                         "chart_data": chart,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+
+                for table in pop_tables():
+                    yield {
+                        "type": "table",
+                        "tool_call_id": tool_call_id,
+                        "table": table,
                         "timestamp": datetime.now().isoformat(),
                     }
 

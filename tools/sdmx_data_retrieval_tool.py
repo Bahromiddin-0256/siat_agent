@@ -14,7 +14,7 @@ from langchain_core.tools import tool
 from core.logger import setup_logger
 from tools.file_utils import load_sdmx_data_file  # noqa: F401 — re-exported for callers
 from tools.constants import Units, Messages
-from tools.chart_utils import push_chart
+from tools.chart_utils import push_chart, push_table
 
 logger = setup_logger(__name__)
 
@@ -310,6 +310,48 @@ def extract_value_from_data(
     return None
 
 
+# Sentinel appended to a tool's text return whenever it has also emitted a
+# structured table via push_table. The system prompt (rule 0c) uses this to
+# tell the LLM "the UI renders this — don't reproduce it in prose".
+STRUCTURED_TABLE_MARKER = "[STRUKTURALI JADVAL EMITTED]"
+
+
+def _coerce_numeric(raw):
+    """Return raw as float if parseable, None if it's a missing-value sentinel.
+
+    SDMX data files use a mix of numeric and string values, plus "N/A" / ""
+    for missing periods. Structured table payloads need real numbers (so the
+    frontend can format/sort) but we preserve unparseable strings so domain
+    quirks ("≈3.5", "не публикуется") still reach the UI.
+    """
+    if raw is None or raw == "N/A" or raw == "":
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return raw
+
+
+def _indicator_dict(sdmx_id: int, indicator_name: str, unit: str) -> dict:
+    """Build the `indicator` block embedded in every push_table payload."""
+    return {
+        "sdmx_id": sdmx_id,
+        "name": indicator_name or f"SDMX ID {sdmx_id}",
+        "unit": unit,
+        "source_url": f"https://siat.stat.uz/reports-filed/{sdmx_id}/table-data",
+        "pdf_url": f"https://api.siat.stat.uz/media/uploads/sdmx/sdmx_data_{sdmx_id}.pdf",
+    }
+
+
+def _row_display_name(row: dict) -> str:
+    return (
+        row.get('Klassifikator')
+        or row.get('Klassifikator_ru')
+        or row.get('Klassifikator_en')
+        or "Ma'lum emas"
+    )
+
+
 @tool
 def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[str] = None) -> str:
     """
@@ -429,14 +471,14 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         result_lines.append("")
 
         chart_data = []
+        table_rows: list[dict] = []
         for yr in all_years:
             value = matching_row.get(yr, 'N/A')
             result_lines.append(f"{yr}: {value} {unit}")
-            if value != 'N/A' and value is not None:
-                try:
-                    chart_data.append({"label": yr, "value": float(value)})
-                except (ValueError, TypeError):
-                    pass
+            coerced = _coerce_numeric(value)
+            table_rows.append({"period": yr, "value": coerced})
+            if isinstance(coerced, (int, float)):
+                chart_data.append({"label": yr, "value": float(coerced)})
 
         if chart_data:
             push_chart({
@@ -445,6 +487,19 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
                 "unit": unit,
                 "data": chart_data,
             })
+
+        if any(isinstance(r["value"], (int, float)) for r in table_rows):
+            push_table({
+                "title": f"{chart_title_base} — {region_name}",
+                "indicator": _indicator_dict(sdmx_id, indicator_name, unit),
+                "columns": [
+                    {"key": "period", "label": "Davr", "type": "period"},
+                    {"key": "value", "label": "Qiymat", "type": "number", "unit": unit},
+                ],
+                "rows": table_rows,
+            })
+            result_lines.append("")
+            result_lines.append(STRUCTURED_TABLE_MARKER)
 
         return "\n".join(result_lines)
 
@@ -476,55 +531,27 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
         result_lines.append("")
 
         chart_data = []
+        single_period_rows: list[dict] = []
+        multi_period_rows: list[dict] = []
         for row in region_rows:
-            region_name = row.get('Klassifikator') or row.get('Klassifikator_ru') or row.get('Klassifikator_en') or "Ma'lum emas"
+            region_name = _row_display_name(row)
             if len(matched_periods) == 1:
-                # Single period: one row per region
                 period = matched_periods[0]
                 value = row.get(period, 'N/A')
                 result_lines.append(f"{region_name}: {value} {unit}")
-                if value != 'N/A' and value is not None:
-                    try:
-                        chart_data.append({"label": region_name, "value": float(value)})
-                    except (ValueError, TypeError):
-                        pass
+                coerced = _coerce_numeric(value)
+                single_period_rows.append({"region": region_name, "value": coerced})
+                if isinstance(coerced, (int, float)):
+                    chart_data.append({"label": region_name, "value": float(coerced)})
             else:
                 # Year prefix matched multiple sub-periods (e.g. quarters): show each
                 result_lines.append(f"{region_name}:")
+                pivot_row = {"region": region_name}
                 for period in matched_periods:
                     value = row.get(period, 'N/A')
                     result_lines.append(f"  {period}: {value} {unit}")
-
-        # For single-period region rollups, also emit a pre-formatted markdown
-        # table block. The LLM is told (via system prompt rule 0b) to copy
-        # this verbatim — past failures saw 2-4 viloyats silently dropped
-        # when the model rebuilt the table from the prose list and "sorted"
-        # by value.
-        if len(matched_periods) == 1:
-            period = matched_periods[0]
-            result_lines.append("")
-            result_lines.append(
-                f"=== MARKDOWN TABLE ({len(region_rows)} rows) — "
-                f"per system rule 0b, copy EVERY row verbatim into the "
-                f"response, in this exact order, with these exact labels. "
-                f"You may translate the column header only. ==="
-            )
-            result_lines.append("```markdown")
-            result_lines.append(f"| Hudud | Qiymat ({unit}) |")
-            result_lines.append("|---|---|")
-            for row in region_rows:
-                region_name = (
-                    row.get('Klassifikator')
-                    or row.get('Klassifikator_ru')
-                    or row.get('Klassifikator_en')
-                    or "Ma'lum emas"
-                )
-                value = row.get(period, 'N/A')
-                result_lines.append(f"| {region_name} | {value} |")
-            result_lines.append("```")
-            result_lines.append(
-                f"=== END MARKDOWN TABLE ({len(region_rows)} rows above) ==="
-            )
+                    pivot_row[period] = _coerce_numeric(value)
+                multi_period_rows.append(pivot_row)
 
         if chart_data:
             push_chart({
@@ -533,6 +560,40 @@ def get_sdmx_value(sdmx_id: int, year: Optional[str] = None, region: Optional[st
                 "unit": unit,
                 "data": chart_data,
             })
+
+        # Structured table — replaces the old "MARKDOWN TABLE … copy verbatim"
+        # block. The frontend renders every row from typed data, so the LLM
+        # no longer has to (and shouldn't, per rule 0c) reproduce it inline.
+        table_emitted = False
+        if len(matched_periods) == 1 and single_period_rows:
+            push_table({
+                "title": f"{chart_title_base} — {matched_periods[0]}",
+                "indicator": _indicator_dict(sdmx_id, indicator_name, unit),
+                "columns": [
+                    {"key": "region", "label": "Hudud", "type": "region"},
+                    {"key": "value", "label": "Qiymat", "type": "number", "unit": unit},
+                ],
+                "rows": single_period_rows,
+            })
+            table_emitted = True
+        elif len(matched_periods) > 1 and multi_period_rows:
+            columns = [{"key": "region", "label": "Hudud", "type": "region"}]
+            for period in matched_periods:
+                columns.append({
+                    "key": period, "label": period,
+                    "type": "number", "unit": unit,
+                })
+            push_table({
+                "title": f"{chart_title_base} — {', '.join(matched_periods)}",
+                "indicator": _indicator_dict(sdmx_id, indicator_name, unit),
+                "columns": columns,
+                "rows": multi_period_rows,
+            })
+            table_emitted = True
+
+        if table_emitted:
+            result_lines.append("")
+            result_lines.append(STRUCTURED_TABLE_MARKER)
 
         return "\n".join(result_lines)
 

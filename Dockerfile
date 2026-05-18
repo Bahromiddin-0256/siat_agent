@@ -32,17 +32,48 @@ RUN --mount=type=cache,target=/root/.cache/uv,id=siat-uv-cache \
     fi && \
     uv sync --frozen --no-dev
 
+# Strip training-only Python deps not used at inference time.
+# Must run in the builder stage so the slim happens BEFORE the venv is
+# copied into the final image — `rm` in a later layer only adds deletion
+# markers and does not reclaim bytes from a prior COPY layer.
+#
+# IMPORTANT: do NOT strip anything under nvidia/*. Every directory under
+# nvidia/ is referenced as a DT_NEEDED entry by torch's C extensions
+# (libtorch_cuda.so, torch/_C.*.so) — including libnccl.so.2 and
+# libnvshmem_host.so.3, which torch eagerly loads at `import torch` even
+# on single-GPU inference. Removing any of them breaks `from torch._C
+# import *` with ImportError.
+#
+# Safe to strip:
+#  - triton    (~639 MB) - torch.compile only, not used at inference
+#  - (sympy: NOT safe — torch imports it eagerly on this wheel)
+#  - pyarrow, pandas, datasets, ir_datasets - pulled transitively via
+#                                              FlagEmbedding's eval/finetune
+#                                              trees; never imported from
+#                                              app code or BGE-M3 inference
+#  - FlagEmbedding evaluation + abc/finetune + abc/evaluation subpackages
+RUN cd /app/.venv/lib/python3.12/site-packages && \
+    rm -rf triton && \
+    find . -type d -name __pycache__ -exec rm -rf {} + && \
+    find . -type d -name tests -exec rm -rf {} + && \
+    find . -name "*.pyc" -delete
+
 # Stage 2: Runtime — minimal final image
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Create non-root user
+# Create non-root user.
+# /home/appuser/.cache/huggingface MUST be pre-created with appuser
+# ownership: docker-compose mounts the `hf-cache` named volume there, and
+# Docker only inherits the image's dir ownership when the mount-point
+# already exists in the image. Without this, the fresh volume comes up
+# root-owned and BGE-M3 fails to write its download.
 RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/chroma_db /app/jsons && \
-    chown -R appuser:appuser /app
+    mkdir -p /app/chroma_db /app/jsons /home/appuser/.cache/huggingface && \
+    chown -R appuser:appuser /app /home/appuser
 
-# Copy the uv-managed venv from builder stage
+# Copy the uv-managed venv from builder stage (already slimmed above)
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Copy application code
