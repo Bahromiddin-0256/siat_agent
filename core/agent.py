@@ -85,6 +85,7 @@ from tools import (
     find_indicators_by_person,
     random_indicators,
     disambiguate_indicator,
+    check_data_freshness,
 )
 
 
@@ -238,6 +239,7 @@ def create_sdmx_agent(
         random_indicators,  # Sample N random indicators when user asks for "random statistika"
 
         # Data extraction tools
+        check_data_freshness,  # Latest period available — call before "current year" questions
         inspect_sdmx_data,  # Inspect dataset structure (rows + periods) before querying
         get_sdmx_value,  # Extract actual data values
         get_sdmx_metadata,  # Get indicator metadata

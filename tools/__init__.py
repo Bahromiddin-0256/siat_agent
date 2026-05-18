@@ -49,6 +49,7 @@ from .sdmx_count_tool import (
 from .people_search_tool import find_indicators_by_person
 from .random_indicator_tool import random_indicators
 from .disambiguate_tool import disambiguate_indicator
+from .freshness_tool import check_data_freshness
 
 __all__ = [
     "get_sdmx_id",
@@ -84,5 +85,6 @@ __all__ = [
     "find_indicators_by_person",
     "random_indicators",
     "disambiguate_indicator",
+    "check_data_freshness",
 ]
 
