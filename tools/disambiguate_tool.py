@@ -33,8 +33,11 @@ from tools.rag_tool import (
     _catalog_total,
     _freshness_multiplier,
     _indicator_age_range,
+    _indicator_measure,
+    _measure_multiplier,
     _query_age_range,
     _query_dimension_intent,
+    _query_measure_intent,
     _subset_penalty,
 )
 
@@ -120,6 +123,7 @@ def disambiguate_indicator(
         return f"No candidates found for: '{question}'"
 
     q_age = _query_age_range(question)
+    q_measure = _query_measure_intent(question)
     passages = [(p.payload or {}).get("text", "") for p in points]
     base_scores = rerank_pairs(question, passages) or [1.0] * len(points)
 
@@ -131,6 +135,7 @@ def disambiguate_indicator(
             * _freshness_multiplier(p.get("updated_xlsx"), p.get("status"))
             * _catalog_order_multiplier(p.get("catalog_index"), _catalog_total)
             * _age_range_multiplier(q_age, _indicator_age_range(p.get("name")))
+            * _measure_multiplier(q_measure, _indicator_measure(p.get("name")))
         )
 
     scored = sorted(

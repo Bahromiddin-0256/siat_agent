@@ -236,15 +236,28 @@ def _query_dimension_intent(question: str) -> set[str]:
 
 
 def _subset_penalty(subset: str, intent: set[str]) -> float:
-    """Rerank-score multiplier. Neutral query + subset variant → 0.7;
-    matching intent or total/neutral indicator → 1.0."""
-    if not subset or subset == "total":
+    """Rerank-score multiplier.
+
+    Asymmetric by design:
+      - Neutral query + subset variant → 0.7 (total wins).
+      - Subset query + total/neutral indicator → 0.7 (subset variant wins).
+      - Matching intent or fully neutral both ways → 1.0.
+
+    The second branch is what stops "Ayollarda ishsizlik darajasi" from
+    returning the total-population unemployment rate: when the user has
+    named a subset dimension, the 'total' variant gets demoted instead of
+    riding the cross-encoder score alone.
+    """
+    sub = subset or ""
+    if sub in ("", "total"):
+        if intent & {"gender", "area", "age"}:
+            return 0.7
         return 1.0
-    if subset in ("female", "male"):
+    if sub in ("female", "male"):
         return 1.0 if "gender" in intent else 0.7
-    if subset in ("urban", "rural"):
+    if sub in ("urban", "rural"):
         return 1.0 if "area" in intent else 0.7
-    if subset in ("age_group", "working_age"):
+    if sub in ("age_group", "working_age"):
         return 1.0 if "age" in intent else 0.7
     return 1.0
 
@@ -339,6 +352,91 @@ def _age_range_multiplier(
     union = max(qh, ih) - min(ql, il) + 1
     jaccard = inter / union if union > 0 else 0.0
     return max(0.5, min(1.0, jaccard))
+
+
+# ---------------------------------------------------------------------------
+# Measure-type axis — keeps "Ishsizlar SONI" from winning when the user asks
+# for "ishsiz odamlar FOIZI". The embedder alone can't reliably tell apart
+# count / rate / share / index indicators that share most of their nouns, so
+# we add a lexical multiplier on top of the cross-encoder score.
+# ---------------------------------------------------------------------------
+
+_MEASURE_QUERY_HINTS: dict[str, tuple[str, ...]] = {
+    "rate": (
+        "foiz", "foizi", "foizini", "foizda",
+        "darajasi", "darajada",
+        "ulush", "ulushi", "ulushini",
+        "percent", "rate", "share",
+        "процент", "уровень", "доля",
+    ),
+    "count": (
+        "soni", "sonini", "sonida",
+        "nechta", "qancha", "qanchasi",
+        "number of", "how many",
+        "количество", "число", "сколько",
+    ),
+    "index": (
+        "indeks", "indeksi",
+        "koeffitsient", "koeffitsienti",
+        "index",
+        "индекс", "коэффициент",
+    ),
+}
+
+_MEASURE_NAME_MARKERS: dict[str, tuple[str, ...]] = {
+    "rate": (
+        "darajasi", "foizi", "ulushi",
+        "rate", "share",
+        "уровень", "доля",
+    ),
+    "count": (
+        "soni",
+        "number",
+        "число", "количество",
+    ),
+    "index": (
+        "indeksi", "koeffitsienti",
+        "index",
+        "индекс", "коэффициент",
+    ),
+}
+
+
+def _query_measure_intent(q: str) -> str | None:
+    """Which measure type did the user ask for: rate, count, or index?
+
+    Returns None when no marker is found, so the multiplier degrades to 1.0
+    and behavior is unchanged for queries that don't hint at a measure.
+    """
+    ql = q.lower()
+    for measure, hints in _MEASURE_QUERY_HINTS.items():
+        if any(h in ql for h in hints):
+            return measure
+    return None
+
+
+def _indicator_measure(name: str | None) -> str | None:
+    """Classify an indicator's measure type from its name."""
+    n = (name or "").lower()
+    for measure, markers in _MEASURE_NAME_MARKERS.items():
+        if any(m in n for m in markers):
+            return measure
+    return None
+
+
+def _measure_multiplier(
+    q_measure: str | None, i_measure: str | None
+) -> float:
+    """Composite multiplier for measure-type match.
+
+    Conservative: only penalises an *explicit* mismatch. If either side has
+    no detected measure, returns 1.0 — the catalog has plenty of indicators
+    whose name doesn't carry a count/rate marker (raw values, currencies,
+    etc.), and we don't want to demote them just for being unmarked.
+    """
+    if q_measure is None or i_measure is None:
+        return 1.0
+    return 1.0 if q_measure == i_measure else 0.5
 
 
 _AGE_BRACKET_INDEX_CACHE: list[tuple[int, str, tuple[int, int]]] | None = None
@@ -762,6 +860,7 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
     # `intent` was already computed above for the retrieval-time boost.
 
     q_age_range = _query_age_range(question)
+    q_measure = _query_measure_intent(question)
 
     def _composite(payload: dict, base: float) -> float:
         p = payload or {}
@@ -776,6 +875,7 @@ def search_sdmx_semantic(question: str, k: int = 20) -> str:
             * _freshness_multiplier(upd, sts)
             * _catalog_order_multiplier(cidx, _catalog_total)
             * _age_range_multiplier(q_age_range, _indicator_age_range(ind_name))
+            * _measure_multiplier(q_measure, _indicator_measure(ind_name))
         )
 
     if len(results) > k:
