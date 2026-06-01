@@ -21,14 +21,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 
 from core.agent import create_sdmx_agent, run_agent_async, run_agent_async_stream
+from core.session_store import SessionStore, build_session_store
 from core.settings import settings
 from core.logger import setup_logger
 from core.session import (
-    init_checkpointer,
-    close_checkpointer,
     validate_chat_id,
     new_chat_id,
-    ping as redis_ping,
 )
 from tools import (
     initialize_sdmx_data,
@@ -50,6 +48,7 @@ class _AppState:
     agent = None
     system_prompt: Optional[str] = None
     tools_map: Dict[str, Any] = {}
+    session_store: Optional[SessionStore] = None
 
 
 _state = _AppState()
@@ -244,12 +243,14 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Metadata RAG vector store initialized successfully!")
 
-        logger.info("Opening Redis checkpointer for chat sessions...")
-        checkpointer = await init_checkpointer()
+        logger.info("Building session store...")
+        _state.session_store = await build_session_store(
+            settings.redis_url, settings.session_ttl_seconds
+        )
 
         logger.info("Creating SDMX agent...")
         _state.agent, _state.system_prompt, _state.tools_map = create_sdmx_agent(
-            checkpointer=checkpointer,
+            checkpointer=_state.session_store.checkpointer,
         )
         logger.info("Application startup complete!")
 
@@ -269,7 +270,11 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         logger.info("Shutting down application...")
-        await close_checkpointer()
+        if _state.session_store is not None:
+            try:
+                await _state.session_store.aclose()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Error closing session store: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +648,11 @@ async def health_check():
         "vector_store": get_vectorstore() is not None,
         "metadata_store": get_metadata_vectorstore() is not None,
         "json_data": bool(sdmx_tool._json_data),
-        "redis": await redis_ping(),
+        "session_store": (
+            await _state.session_store.ping()
+            if _state.session_store is not None
+            else False
+        ),
     }
 
     # Only probe the LLM provider that's actually configured.

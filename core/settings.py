@@ -48,12 +48,15 @@ class Settings(BaseSettings):
     # Vector store path (Qdrant local, both collections share one directory)
     qdrant_persist_dir: Path = BASE_DIR / "vector" / "qdrant"
 
-    # Redis-backed conversation sessions. `redis_url` is required at startup
-    # (the checkpointer fails fast if unreachable); `redis_session_ttl_seconds`
-    # sets the sliding-window expiry the LangGraph saver refreshes on every
-    # read/write — see core/session.py.
-    redis_url: str = "redis://localhost:6379/0"
-    redis_session_ttl_seconds: int = 604_800  # 7 days
+    # Session storage. When REDIS_URL is set, conversation state is persisted
+    # to Redis via langgraph-checkpoint-redis (survives restarts, shareable
+    # across replicas) — `session_ttl_seconds` sets the sliding-window expiry
+    # the saver refreshes on every read/write. When empty, falls back to
+    # in-process MemorySaver — convenient for local dev and tests, but state
+    # is lost on restart and cannot be shared between processes. See
+    # core/session_store.py.
+    redis_url: str = ""
+    session_ttl_seconds: int = 7 * 24 * 60 * 60  # 7 days
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
@@ -97,12 +100,12 @@ class Settings(BaseSettings):
         if self.llm_provider == "openai" and not self.openai_api_key.strip():
             errors.append("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
 
-        if not self.redis_url.strip():
-            errors.append("REDIS_URL is required for chat session persistence")
-
-        if self.redis_session_ttl_seconds <= 0:
+        # REDIS_URL is optional: when empty, sessions fall back to an
+        # in-process MemorySaver (see core/session_store.py). Only the TTL
+        # must be sane, since it's used whenever Redis *is* configured.
+        if self.session_ttl_seconds <= 0:
             errors.append(
-                f"REDIS_SESSION_TTL_SECONDS must be > 0 (got {self.redis_session_ttl_seconds})"
+                f"SESSION_TTL_SECONDS must be > 0 (got {self.session_ttl_seconds})"
             )
 
         return errors

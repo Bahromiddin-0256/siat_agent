@@ -1,6 +1,7 @@
-# Requires NVIDIA Container Toolkit on host:
-#   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-# Verify with:  docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+# CPU-only by default. For GPU hosts, layer docker-compose.gpu.yml on top:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# scripts/gcp-vm.sh deploy adds the override automatically when nvidia-smi
+# is present on the target VM.
 
 services:
   redis:
@@ -35,12 +36,15 @@ services:
     environment:
       PORT: "8001"
       APP_PORT: "8001"
-      BGE_M3_DEVICE: "cuda"
+      BGE_M3_DEVICE: "cpu"
       HF_HOME: "/home/appuser/.cache/huggingface"
       TRANSFORMERS_CACHE: "/home/appuser/.cache/huggingface"
       NVIDIA_VISIBLE_DEVICES: "all"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-      # Point the app at the redis service in this compose network.
+      # Persistent session/conversation state — points at the redis service in
+      # this compose network so chats survive container restarts and are
+      # shareable across replicas. Override in .env to disable (empty string)
+      # or point at an external Redis.
       REDIS_URL: "redis://redis:6379/0"
 
     depends_on:
@@ -55,14 +59,6 @@ services:
       - ./jsons:/app/jsons
       - ./logs:/app/logs
       - hf-cache:/home/appuser/.cache/huggingface
-
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
     healthcheck:
       test:
@@ -82,6 +78,26 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    container_name: siat-redis
+    restart: unless-stopped
+    # AOF persistence — sessions survive a restart at the cost of a small
+    # write amplification. Drop --appendonly for ephemeral state.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   hf-cache:

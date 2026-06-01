@@ -212,8 +212,8 @@ def create_sdmx_agent(
     Args:
         checkpointer: Optional `BaseCheckpointSaver`. When set (typical in
             production), this is the Redis-backed `AsyncRedisSaver` opened by
-            `core.session.init_checkpointer()` — conversations key off the
-            request's `chat_id` and persist across restarts. When `None`
+            `core.session_store.build_session_store()` — conversations key off
+            the request's `chat_id` and persist across restarts. When `None`
             (tests, scripts), we fall back to `MemorySaver` so the agent
             still works without a Redis dependency.
 
@@ -552,9 +552,9 @@ Rules:
     # The checkpointer holds conversation state keyed by `thread_id` so a
     # session can do follow-up questions ("...endi Samarqand-chi?") without
     # the client re-sending earlier turns. In production we inject the
-    # Redis-backed `AsyncRedisSaver` (see core/session.py) so chats survive
-    # restarts and reconnects; tests/scripts that don't pass one fall back
-    # to in-process `MemorySaver`.
+    # Redis-backed `AsyncRedisSaver` (see core/session_store.py) so chats
+    # survive restarts and reconnects; tests/scripts that don't pass one fall
+    # back to in-process `MemorySaver`.
     if checkpointer is None:
         checkpointer = MemorySaver()
         logger.info("No checkpointer supplied — using in-process MemorySaver")

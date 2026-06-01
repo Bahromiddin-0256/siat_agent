@@ -70,7 +70,7 @@ WORKDIR /app
 # already exists in the image. Without this, the fresh volume comes up
 # root-owned and BGE-M3 fails to write its download.
 RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/chroma_db /app/jsons /home/appuser/.cache/huggingface && \
+    mkdir -p /app/chroma_db /app/jsons /app/jsons/sdmxs /home/appuser/.cache/huggingface && \
     chown -R appuser:appuser /app /home/appuser
 
 # Copy the uv-managed venv from builder stage (already slimmed above)
@@ -85,7 +85,6 @@ COPY --chown=appuser:appuser pyproject.toml ./
 
 # Copy JSON data files
 COPY --chown=appuser:appuser jsons/main.json ./jsons/main.json
-COPY --chown=appuser:appuser jsons/sdmxs/ ./jsons/sdmxs/
 
 # Set environment variables
 ENV PATH=/app/.venv/bin:$PATH \
